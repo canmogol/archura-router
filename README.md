@@ -16,6 +16,9 @@ gu install native-image
 # build project
 mvn clean install
 
+# generate native image configuration 
+java --enable-preview -agentlib:native-image-agent=config-output-dir=src/main/resources/META-INF/native-image -jar target/archura-router-0.0.1-SNAPSHOT.jar
+
 # create native image 
 ./mvnw native:compile -Pnative
 
