@@ -5,7 +5,6 @@ import io.archura.router.config.GlobalConfiguration;
 import io.archura.router.notification.event.NotificationServerConnectedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +21,6 @@ import java.util.concurrent.Executors;
 @Component
 public class GlobalConfigurationListener implements ApplicationListener<NotificationServerConnectedEvent> {
 
-    private final ApplicationEventPublisher applicationEventPublisher;
     private final GlobalConfiguration globalConfiguration;
     private volatile boolean globalConfigurationFetched = false;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -46,7 +44,7 @@ public class GlobalConfigurationListener implements ApplicationListener<Notifica
                 globalConfiguration.copy(from);
                 // break loop
                 this.globalConfigurationFetched = true;
-                log.info("Configuration fetched from configuration server");
+                log.debug("Configuration fetched from configuration server");
             } catch (InterruptedException | IOException e) {
                 log.error("Failed to fetch configuration from configuration server", e);
                 waitAndContinue();

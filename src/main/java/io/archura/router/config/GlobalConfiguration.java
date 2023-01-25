@@ -42,6 +42,9 @@ public class GlobalConfiguration {
     @Value("${notification.server.retry.interval:10000}")
     private long notificationServerRetryInterval;
 
+    private Map<String, FilterConfiguration> globalFilterConfigurations = new HashMap<>();
+    private Map<String, DomainConfiguration> domains = new HashMap<>();
+
     public void copy(final GlobalConfiguration from) {
         if (nonNull(from)
                 && nonNull(from.getConfigurationServerURL())
@@ -60,6 +63,22 @@ public class GlobalConfiguration {
     }
 
     public void deleteDomainConfigurations() {
+        this.domains.clear();
     }
 
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class FilterConfiguration {
+        private String name;
+        private Map<String, String> configuration = new HashMap<>();
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class DomainConfiguration {
+        private String name;
+        private String customerAccount;
+    }
 }

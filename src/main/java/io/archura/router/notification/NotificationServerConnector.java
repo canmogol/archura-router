@@ -40,7 +40,7 @@ public class NotificationServerConnector {
         try {
             final WebSocket.Builder webSocketBuilder = createWebsocketBuilder();
             webSocket = connectToWebsocket(webSocketBuilder);
-            log.info("Connection established to notification server");
+            log.debug("Connection established to notification server");
             // send ping to notification server, this will fail if the connection is lost
             while (nonNull(webSocket)) {
                 sendPingToServer(webSocket);

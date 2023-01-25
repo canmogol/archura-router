@@ -21,20 +21,20 @@ public class NotificationServerListener implements WebSocket.Listener {
 
     @Override
     public void onOpen(WebSocket webSocket) {
-        log.info("Connected to notification server");
+        log.debug("Connected to notification server");
         Thread.startVirtualThread(() -> applicationEventPublisher.publishEvent(new NotificationServerConnectedEvent(this)));
     }
 
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-        log.info("Received notification from notification server: {}", data);
+        log.debug("Received notification from notification server: {}", data);
         Thread.startVirtualThread(() -> applicationEventPublisher.publishEvent(new NotificationServerTextMessageEvent(this, data.toString())));
         return null;
     }
 
     @Override
     public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-        log.info("Disconnected from notification server");
+        log.debug("Disconnected from notification server");
         Thread.startVirtualThread(() -> applicationEventPublisher.publishEvent(new NotificationServerDisconnectedEvent(this, statusCode, reason)));
         return null;
     }
