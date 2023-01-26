@@ -20,25 +20,106 @@
       "pattern":"\\Qapplication.properties\\E"
     }, 
     {
-      "pattern":"\\Qio/archura/router/ArchuraRouterApplication.class\\E"
-    }, 
-    {
       "pattern":"\\Qio/archura/router/\\E"
     }, 
     {
-      "pattern":"\\Qio/archura/router/config/CacheConfiguration.class\\E"
+      "pattern":"\\Qio/archura/router/compat/ArchuraObjectMapper.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/ApplicationConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$DomainConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$FilterConfiguration.class\\E"
     }, 
     {
       "pattern":"\\Qio/archura/router/config/GlobalConfiguration.class\\E"
     }, 
     {
+      "pattern":"\\Qio/archura/router/config/\\E"
+    }, 
+    {
       "pattern":"\\Qio/archura/router/configuration/GlobalConfigurationListener.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/ArchuraFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/FilterFactory.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/InitialFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/AuditingFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/AuthenticationFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/AuthorizationFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/CachingFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/CircuitBreakerFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/DomainFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/ExternalHttpFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/HeaderFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/ParallelizationFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/PredefinedResponseFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/RateLimitingFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/RetryFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/RouteMatchingFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/RoutingFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/TenantFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/ThrottlingFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/TimeoutFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/WebhookFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/filter/internal/ZeroDeploymentFilter.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/mapping/Mapper.class\\E"
     }, 
     {
       "pattern":"\\Qio/archura/router/notification/NotificationServerConnector.class\\E"
     }, 
     {
       "pattern":"\\Qio/archura/router/notification/NotificationServerListener.class\\E"
+    }, 
+    {
+      "pattern":"\\Qjakarta/servlet/Filter.class\\E"
     }, 
     {
       "pattern":"\\Qorg/apache/catalina/core/RestrictedFilters.properties\\E"
@@ -74,6 +155,15 @@
       "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfiguration.class\\E"
     }, 
     {
+      "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigurationImportSelector.class\\E"
+    }, 
+    {
+      "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigurationPackage.class\\E"
+    }, 
+    {
+      "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigurationPackages$Registrar.class\\E"
+    }, 
+    {
       "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigureAfter.class\\E"
     }, 
     {
@@ -81,6 +171,9 @@
     }, 
     {
       "pattern":"\\Qorg/springframework/boot/autoconfigure/AutoConfigureOrder.class\\E"
+    }, 
+    {
+      "pattern":"\\Qorg/springframework/boot/autoconfigure/EnableAutoConfiguration.class\\E"
     }, 
     {
       "pattern":"\\Qorg/springframework/boot/autoconfigure/admin/SpringApplicationAdminJmxAutoConfiguration.class\\E"
@@ -362,6 +455,9 @@
       "pattern":"\\Qorg/springframework/boot/autoconfigure/websocket/servlet/WebSocketServletAutoConfiguration.class\\E"
     }, 
     {
+      "pattern":"\\Qorg/springframework/boot/context/annotation/DeterminableImports.class\\E"
+    }, 
+    {
       "pattern":"\\Qorg/springframework/boot/context/properties/EnableConfigurationProperties.class\\E"
     }, 
     {
@@ -384,6 +480,9 @@
     }, 
     {
       "pattern":"\\Qorg/springframework/context/annotation/Configuration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qorg/springframework/context/annotation/DeferredImportSelector.class\\E"
     }, 
     {
       "pattern":"\\Qorg/springframework/context/annotation/Import.class\\E"
@@ -423,6 +522,10 @@
     }, 
     {
       "name":"org.apache.catalina.authenticator.LocalStrings",
+      "locales":[""]
+    }, 
+    {
+      "name":"org.apache.catalina.authenticator.jaspic.LocalStrings",
       "locales":[""]
     }, 
     {
@@ -486,6 +589,10 @@
       "locales":[""]
     }, 
     {
+      "name":"org.apache.coyote.http11.filters.LocalStrings",
+      "locales":[""]
+    }, 
+    {
       "name":"org.apache.naming.LocalStrings",
       "locales":[""]
     }, 
@@ -507,6 +614,10 @@
     }, 
     {
       "name":"org.apache.tomcat.util.http.LocalStrings",
+      "locales":[""]
+    }, 
+    {
+      "name":"org.apache.tomcat.util.http.parser.LocalStrings",
       "locales":[""]
     }, 
     {

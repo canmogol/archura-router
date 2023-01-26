@@ -1,7 +1,9 @@
 package io.archura.router.filter;
 
-import io.archura.router.config.GlobalConfiguration;
-import io.archura.router.filter.internal.*;
+import io.archura.router.filter.internal.UnknownFilter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -9,16 +11,18 @@ import java.util.Optional;
 
 import static java.util.Objects.nonNull;
 
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class FilterFactory {
+
+    private final BeanFactory beanFactory;
 
     @Autowired(required = false)
     private CustomFilterRegistry customFilterRegistry;
 
-    public ArchuraFilter create(final String filterName, final GlobalConfiguration.FilterConfiguration configuration) {
-        final ArchuraFilter filter = findFilter(filterName);
-        filter.setConfiguration(configuration);
-        return filter;
+    public ArchuraFilter create(final String filterName) {
+        return findFilter(filterName);
     }
 
     private ArchuraFilter findFilter(String filterName) {
@@ -29,27 +33,12 @@ public class FilterFactory {
                 return customFilter.get();
             }
         }
-        return switch (filterName) {
-            case "Domain" -> new DomainFilter();
-            case "Throttling" -> new ThrottlingFilter();
-            case "RateLimiting" -> new RateLimitingFilter();
-            case "Tenant" -> new TenantFilter();
-            case "RouteMatching" -> new RouteMatchingFilter();
-            case "ZeroDeployment" -> new ZeroDeploymentFilter();
-            case "Authentication" -> new AuthenticationFilter();
-            case "Authorization" -> new AuthorizationFilter();
-            case "Auditing" -> new AuditingFilter();
-            case "Header" -> new HeaderFilter();
-            case "Caching" -> new CachingFilter();
-            case "Webhook" -> new WebhookFilter();
-            case "PredefinedResponse" -> new PredefinedResponseFilter();
-            case "Timeout" -> new TimeoutFilter();
-            case "Retry" -> new RetryFilter();
-            case "Parallelization" -> new ParallelizationFilter();
-            case "CircuitBreaker" -> new CircuitBreakerFilter();
-            case "ExternalHttp" -> new ExternalHttpFilter();
-            case "Routing" -> new RoutingFilter();
-            default -> new UnknownFilter(filterName);
-        };
+        try {
+            final String filterBeanName = "%s%s%s".formatted(filterName.substring(0, 1).toLowerCase(), filterName.substring(1), "Filter");
+            return beanFactory.getBean(filterBeanName, ArchuraFilter.class);
+        } catch (Exception e) {
+            log.debug("No bean found for filter: {}", filterName);
+            return new UnknownFilter(filterName);
+        }
     }
 }

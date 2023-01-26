@@ -2,11 +2,13 @@ package io.archura.router.filter.internal;
 
 import io.archura.router.config.GlobalConfiguration;
 import io.archura.router.filter.ArchuraFilter;
-import io.archura.router.mapping.Mapper;
 import io.archura.router.filter.exception.ArchuraFilterException;
+import io.archura.router.mapping.Mapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URI;
@@ -21,14 +23,21 @@ import java.util.concurrent.Executors;
 import static java.util.Objects.nonNull;
 
 @Slf4j
+@RequiredArgsConstructor
+@Component
 public class DomainFilter implements ArchuraFilter {
     public static final String DEFAULT_DOMAIN = "default";
     public static final String DEFAULT_CUSTOMER_ACCOUNT = "default";
-    private GlobalConfiguration globalConfiguration;
-    private Mapper mapper;
+    private final GlobalConfiguration globalConfiguration;
+    private final Mapper mapper;
 
     @Override
-    public void doFilter(HttpServletRequest httpServletRequest, HttpServletResponse response) throws ArchuraFilterException {
+    public void doFilter(
+            final GlobalConfiguration.FilterConfiguration configuration,
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse response
+    ) throws ArchuraFilterException {
+        log.debug("DomainFilter");
         final String host = nonNull(httpServletRequest.getHeader("Host")) ? httpServletRequest.getHeader("Host") : "localhost";
         final Map<String, GlobalConfiguration.DomainConfiguration> domains = globalConfiguration.getDomains();
         if (!domains.containsKey(host)) {
@@ -73,6 +82,7 @@ public class DomainFilter implements ArchuraFilter {
         final String url = "%s/domain/%s".formatted(globalConfiguration.getConfigurationServerURL(), domain);
         final URI uri = URI.create(url);
         return builder
+                .timeout(Duration.ofMillis(globalConfiguration.getConfigurationServerConnectionTimeout()))
                 .uri(uri)
                 .GET()
                 .build();
@@ -85,13 +95,4 @@ public class DomainFilter implements ArchuraFilter {
                 .build();
     }
 
-    @Override
-    public void setGlobalConfiguration(GlobalConfiguration globalConfiguration) {
-        this.globalConfiguration = globalConfiguration;
-    }
-
-    @Override
-    public void setMapper(Mapper mapper) {
-        this.mapper = mapper;
-    }
 }

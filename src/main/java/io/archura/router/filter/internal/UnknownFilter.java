@@ -1,5 +1,6 @@
 package io.archura.router.filter.internal;
 
+import io.archura.router.config.GlobalConfiguration;
 import io.archura.router.filter.ArchuraFilter;
 import io.archura.router.filter.exception.ArchuraFilterException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,7 +16,11 @@ public class UnknownFilter implements ArchuraFilter {
     }
 
     @Override
-    public void doFilter(HttpServletRequest httpServletRequest, HttpServletResponse response) throws ArchuraFilterException {
+    public void doFilter(
+            final GlobalConfiguration.FilterConfiguration configuration,
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse response
+    ) throws ArchuraFilterException {
         log.error("Unknown filter: {}", name);
     }
 

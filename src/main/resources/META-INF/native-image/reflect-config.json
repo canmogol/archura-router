@@ -333,9 +333,7 @@
   "queryAllDeclaredConstructors":true,
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
-    {"name":"applicationRunner","parameterTypes":["io.archura.router.notification.NotificationServerConnector"] }, 
-    {"name":"main","parameterTypes":["java.lang.String[]"] }, 
-    {"name":"tomcatProtocolHandlerCustomizer","parameterTypes":[] }
+    {"name":"main","parameterTypes":["java.lang.String[]"] }
   ]
 },
 {
@@ -347,27 +345,33 @@
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
     {"name":"CGLIB$SET_STATIC_CALLBACKS","parameterTypes":["org.springframework.cglib.proxy.Callback[]"] }, 
-    {"name":"CGLIB$SET_THREAD_CALLBACKS","parameterTypes":["org.springframework.cglib.proxy.Callback[]"] }, 
+    {"name":"CGLIB$SET_THREAD_CALLBACKS","parameterTypes":["org.springframework.cglib.proxy.Callback[]"] }
+  ]
+},
+{
+  "name":"io.archura.router.compat.ArchuraObjectMapper",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["com.fasterxml.jackson.databind.ObjectMapper"] }, 
+    {"name":"readValue","parameterTypes":["java.lang.String","java.lang.Class"] }
+  ]
+},
+{
+  "name":"io.archura.router.config.ApplicationConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
     {"name":"applicationRunner","parameterTypes":["io.archura.router.notification.NotificationServerConnector"] }, 
+    {"name":"mapper","parameterTypes":["io.archura.router.compat.ArchuraObjectMapper"] }, 
     {"name":"tomcatProtocolHandlerCustomizer","parameterTypes":[] }
   ]
 },
 {
-  "name":"io.archura.router.ArchuraRouterApplication$$SpringCGLIB$$1",
-  "methods":[{"name":"<init>","parameterTypes":["java.lang.Class"] }]
-},
-{
-  "name":"io.archura.router.ArchuraRouterApplication$$SpringCGLIB$$2",
-  "methods":[{"name":"<init>","parameterTypes":["java.lang.Class"] }]
-},
-{
-  "name":"io.archura.router.config.CacheConfiguration",
-  "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"io.archura.router.config.CacheConfiguration$$SpringCGLIB$$0",
+  "name":"io.archura.router.config.ApplicationConfiguration$$SpringCGLIB$$0",
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true,
   "queryAllDeclaredConstructors":true,
@@ -375,8 +379,19 @@
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
     {"name":"CGLIB$SET_STATIC_CALLBACKS","parameterTypes":["org.springframework.cglib.proxy.Callback[]"] }, 
-    {"name":"CGLIB$SET_THREAD_CALLBACKS","parameterTypes":["org.springframework.cglib.proxy.Callback[]"] }
+    {"name":"CGLIB$SET_THREAD_CALLBACKS","parameterTypes":["org.springframework.cglib.proxy.Callback[]"] }, 
+    {"name":"applicationRunner","parameterTypes":["io.archura.router.notification.NotificationServerConnector"] }, 
+    {"name":"mapper","parameterTypes":["io.archura.router.compat.ArchuraObjectMapper"] }, 
+    {"name":"tomcatProtocolHandlerCustomizer","parameterTypes":[] }
   ]
+},
+{
+  "name":"io.archura.router.config.ApplicationConfiguration$$SpringCGLIB$$1",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.Class"] }]
+},
+{
+  "name":"io.archura.router.config.ApplicationConfiguration$$SpringCGLIB$$2",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.Class"] }]
 },
 {
   "name":"io.archura.router.config.GlobalConfiguration",
@@ -385,7 +400,7 @@
   "queryAllDeclaredConstructors":true,
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
-    {"name":"<init>","parameterTypes":["java.net.URI","java.util.Map","long","long","java.net.URI","java.util.Map","long","long"] }, 
+    {"name":"<init>","parameterTypes":["java.net.URI","java.util.Map","long","long","java.net.URI","java.util.Map","long","long","java.util.Map","java.util.Map"] }, 
     {"name":"copy","parameterTypes":["io.archura.router.config.GlobalConfiguration"] }, 
     {"name":"deleteDomainConfigurations","parameterTypes":[] }, 
     {"name":"equals","parameterTypes":["java.lang.Object"] }, 
@@ -393,6 +408,8 @@
     {"name":"getConfigurationServerRequestHeaders","parameterTypes":[] }, 
     {"name":"getConfigurationServerRetryInterval","parameterTypes":[] }, 
     {"name":"getConfigurationServerURL","parameterTypes":[] }, 
+    {"name":"getDomains","parameterTypes":[] }, 
+    {"name":"getGlobalFilterConfigurations","parameterTypes":[] }, 
     {"name":"getNotificationServerConnectionTimeout","parameterTypes":[] }, 
     {"name":"getNotificationServerRequestHeaders","parameterTypes":[] }, 
     {"name":"getNotificationServerRetryInterval","parameterTypes":[] }, 
@@ -402,6 +419,8 @@
     {"name":"setConfigurationServerRequestHeaders","parameterTypes":["java.util.Map"] }, 
     {"name":"setConfigurationServerRetryInterval","parameterTypes":["long"] }, 
     {"name":"setConfigurationServerURL","parameterTypes":["java.net.URI"] }, 
+    {"name":"setDomains","parameterTypes":["java.util.Map"] }, 
+    {"name":"setGlobalFilterConfigurations","parameterTypes":["java.util.Map"] }, 
     {"name":"setNotificationServerConnectionTimeout","parameterTypes":["long"] }, 
     {"name":"setNotificationServerRequestHeaders","parameterTypes":["java.util.Map"] }, 
     {"name":"setNotificationServerRetryInterval","parameterTypes":["long"] }, 
@@ -422,14 +441,245 @@
   ]
 },
 {
+  "name":"io.archura.router.config.GlobalConfiguration$DomainConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$FilterConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
   "name":"io.archura.router.configuration.GlobalConfigurationListener",
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true,
   "queryAllDeclaredConstructors":true,
   "methods":[
-    {"name":"<init>","parameterTypes":["org.springframework.context.ApplicationEventPublisher","io.archura.router.config.GlobalConfiguration"] }, 
+    {"name":"<init>","parameterTypes":["io.archura.router.config.GlobalConfiguration"] }, 
     {"name":"onApplicationEvent","parameterTypes":["org.springframework.context.ApplicationEvent"] }
   ]
+},
+{
+  "name":"io.archura.router.filter.ArchuraFilter",
+  "queryAllDeclaredMethods":true,
+  "queryAllPublicMethods":true
+},
+{
+  "name":"io.archura.router.filter.FilterFactory",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":["org.springframework.beans.factory.BeanFactory"] }]
+},
+{
+  "name":"io.archura.router.filter.InitialFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["io.archura.router.config.GlobalConfiguration","io.archura.router.filter.FilterFactory"] }, 
+    {"name":"destroy","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["jakarta.servlet.ServletRequest","jakarta.servlet.ServletResponse","jakarta.servlet.FilterChain"] }, 
+    {"name":"init","parameterTypes":["jakarta.servlet.FilterConfig"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.AuditingFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.AuthenticationFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.AuthorizationFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.CachingFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.CircuitBreakerFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.DomainFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["io.archura.router.config.GlobalConfiguration","io.archura.router.mapping.Mapper"] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.ExternalHttpFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.HeaderFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.ParallelizationFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.PredefinedResponseFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.RateLimitingFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.RetryFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.RouteMatchingFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.RoutingFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.TenantFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.ThrottlingFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.TimeoutFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.WebhookFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.filter.internal.ZeroDeploymentFilter",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
+  ]
+},
+{
+  "name":"io.archura.router.mapping.Mapper",
+  "queryAllDeclaredMethods":true,
+  "queryAllPublicMethods":true
 },
 {
   "name":"io.archura.router.notification.NotificationServerConnector",
@@ -564,6 +814,7 @@
 },
 {
   "name":"jakarta.servlet.Filter",
+  "queryAllDeclaredMethods":true,
   "queryAllPublicMethods":true
 },
 {
