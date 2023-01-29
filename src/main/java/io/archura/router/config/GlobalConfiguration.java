@@ -80,6 +80,7 @@ public class GlobalConfiguration {
     @NoArgsConstructor
     public static class DomainConfiguration {
         private String customerAccount;
+        private Map<String, String> parameters = new HashMap<>();
         private Map<String, FilterConfiguration> domainPreFilters = new HashMap<>();
         private Map<String, FilterConfiguration> domainPostFilters = new HashMap<>();
         private Map<String, TenantConfiguration> tenants = new HashMap<>();
