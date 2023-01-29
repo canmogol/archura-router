@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -73,11 +75,6 @@ public class InitialFilter implements Filter {
             // send downstream request
             // Routing
 
-            List.of(globalConfiguration.getGlobalPostFilters(),
-                    globalConfiguration.getDomainPostFilters(),
-                    globalConfiguration.getTenantPostFilters()
-            ).forEach(runFilters(httpServletRequest, httpServletResponse));
-
             // comes from downstream server
             final int status = HttpServletResponse.SC_OK;
             final String contentType = "text/plain";
@@ -109,7 +106,10 @@ public class InitialFilter implements Filter {
 
         final List<GlobalConfiguration.RouteConfiguration> routeConfigurations = tenantConfiguration.getMethodRoutes().get(method);
         if (nonNull(routeConfigurations)) {
-            // TODO: return the first matching route
+            final Optional<GlobalConfiguration.RouteConfiguration> routeConfiguration = findMatchingRoute(httpServletRequest, routeConfigurations);
+            if (routeConfiguration.isPresent()) {
+                return routeConfiguration.get();
+            }
         }
 
         final List<GlobalConfiguration.RouteConfiguration> catchAllRoutes = tenantConfiguration.getMethodRoutes().get("*");
@@ -118,24 +118,214 @@ public class InitialFilter implements Filter {
         }
 
         // return not found route
+        final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
+        return getNotFoundRouteConfiguration(domainConfiguration, requestHeaders, method);
+    }
+
+    private Optional<GlobalConfiguration.RouteConfiguration> findMatchingRoute(
+            final HttpServletRequest httpServletRequest,
+            final List<GlobalConfiguration.RouteConfiguration> routeConfigurations
+    ) {
+        final String uri = httpServletRequest.getRequestURI();
+        final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
+        final Map<String, String> templateVariables = new HashMap<>();
+        for (GlobalConfiguration.RouteConfiguration routeConfiguration : routeConfigurations) {
+            final Optional<GlobalConfiguration.RouteConfiguration> matched = matchRouteConfiguration(httpServletRequest, uri, requestHeaders, templateVariables, routeConfiguration);
+            if (matched.isPresent()) {
+                final GlobalConfiguration.RouteConfiguration matchedRouteConfiguration = matched.get();
+                final GlobalConfiguration.MapConfiguration mapConfiguration = matchedRouteConfiguration.getMapConfiguration();
+                final GlobalConfiguration.MapConfiguration appliedMapConfiguration = applyTemplateVariables(mapConfiguration, templateVariables);
+                final GlobalConfiguration.RouteConfiguration appliedRouteConfiguration = matchedRouteConfiguration.toBuilder()
+                        .mapConfiguration(appliedMapConfiguration)
+                        .build();
+                return Optional.of(appliedRouteConfiguration);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private GlobalConfiguration.MapConfiguration applyTemplateVariables(
+            final GlobalConfiguration.MapConfiguration mapConfiguration,
+            final Map<String, String> templateVariables
+    ) {
+        String url = mapConfiguration.getUrl();
+        final Map<String, String> headers = mapConfiguration.getHeaders();
+
+        // templateVariables: { 'match.url.tenantId' : '12345', 'extract.header.token' : 'qwerty' }
+        for (String variable : templateVariables.keySet()) {
+            final String value = templateVariables.get(variable);
+            final String variablePattern = "\\$\\{" + variable + "\\}";
+            url = url.replaceAll(variablePattern, value);
+            for (String header : headers.keySet()) {
+                final String headerValue = headers.get(header);
+                headers.put(header, headerValue.replaceAll(variablePattern, value));
+            }
+        }
+        final GlobalConfiguration.MapConfiguration appliedMapConfiguration = new GlobalConfiguration.MapConfiguration();
+        appliedMapConfiguration.setUrl(url);
+        appliedMapConfiguration.setHeaders(headers);
+        appliedMapConfiguration.setMethodMap(mapConfiguration.getMethodMap());
+        return appliedMapConfiguration;
+    }
+
+    private void addExtractVariables(
+            final HttpServletRequest httpServletRequest,
+            final Map<String, String> requestHeaders,
+            final Map<String, String> templateVariables,
+            final GlobalConfiguration.ExtractConfiguration extractConfiguration
+    ) {
+        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration = extractConfiguration.getRoutePathConfiguration();
+        if (nonNull(routePathConfiguration)) {
+            final String input = httpServletRequest.getRequestURI();
+            final String regex = routePathConfiguration.getRegex();
+            final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
+            final Pattern pattern = Pattern.compile(regex);
+            final Matcher matcher = pattern.matcher(input);
+            if (matcher.matches()) {
+                for (String group : captureGroups) {
+                    templateVariables.put("extract.path." + group, matcher.group(group));
+                }
+            }
+        }
+        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = extractConfiguration.getRouteHeaderConfiguration();
+        if (nonNull(headerConfiguration) && requestHeaders.containsKey(headerConfiguration.getName())) {
+            final String input = requestHeaders.get(headerConfiguration.getName());
+            final String regex = headerConfiguration.getRegex();
+            final List<String> captureGroups = headerConfiguration.getCaptureGroups();
+            final Pattern pattern = Pattern.compile(regex);
+            final Matcher matcher = pattern.matcher(input);
+            if (matcher.matches()) {
+                for (String group : captureGroups) {
+                    templateVariables.put("extract.header." + group, matcher.group(group));
+                }
+            }
+        }
+        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = extractConfiguration.getRouteQueryConfiguration();
+        if (nonNull(queryConfiguration) && httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
+            final String input = httpServletRequest.getParameter(queryConfiguration.getName());
+            final String regex = queryConfiguration.getRegex();
+            final List<String> captureGroups = queryConfiguration.getCaptureGroups();
+            final Pattern pattern = Pattern.compile(regex);
+            final Matcher matcher = pattern.matcher(input);
+            if (matcher.matches()) {
+                for (String group : captureGroups) {
+                    templateVariables.put("extract.query." + group, matcher.group(group));
+                }
+            }
+        }
+    }
+
+    private Optional<GlobalConfiguration.RouteConfiguration> matchRouteConfiguration(
+            final HttpServletRequest httpServletRequest,
+            final String uri,
+            final Map<String, String> requestHeaders,
+            final Map<String, String> templateVariables,
+            final GlobalConfiguration.RouteConfiguration routeConfiguration
+    ) {
+        boolean match = false;
+        final GlobalConfiguration.MatchConfiguration matchConfiguration = routeConfiguration.getMatchConfiguration();
+        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration = matchConfiguration.getRoutePathConfiguration();
+        if (nonNull(routePathConfiguration)) {
+            final String input = uri;
+            final String regex = routePathConfiguration.getRegex();
+            final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
+            final Pattern pattern = Pattern.compile(regex);
+            final Matcher matcher = pattern.matcher(input);
+            if (matcher.matches()) {
+                for (String group : captureGroups) {
+                    templateVariables.put("match.path." + group, matcher.group(group));
+                }
+                match = true;
+            } else {
+                match = false;
+            }
+        }
+        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = matchConfiguration.getRouteHeaderConfiguration();
+        if (nonNull(headerConfiguration)) {
+            if (requestHeaders.containsKey(headerConfiguration.getName())) {
+                final String input = requestHeaders.get(headerConfiguration.getName());
+                final String regex = headerConfiguration.getRegex();
+                final List<String> captureGroups = headerConfiguration.getCaptureGroups();
+                final Pattern pattern = Pattern.compile(regex);
+                final Matcher matcher = pattern.matcher(input);
+                if (matcher.matches()) {
+                    for (String group : captureGroups) {
+                        templateVariables.put("match.header." + group, matcher.group(group));
+                    }
+                    match = true;
+                } else {
+                    match = false;
+                }
+            } else {
+                match = false;
+            }
+        }
+        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = matchConfiguration.getRouteQueryConfiguration();
+        if (nonNull(queryConfiguration)) {
+            if (httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
+                final String input = httpServletRequest.getParameter(queryConfiguration.getName());
+                final String regex = queryConfiguration.getRegex();
+                final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
+                final Pattern pattern = Pattern.compile(regex);
+                final Matcher matcher = pattern.matcher(input);
+                if (matcher.matches()) {
+                    for (String group : captureGroups) {
+                        templateVariables.put("match.query." + group, matcher.group(group));
+                    }
+                    match = true;
+                } else {
+                    match = false;
+                }
+            } else {
+                match = false;
+            }
+        }
+        if (match) {
+            final GlobalConfiguration.ExtractConfiguration extractConfiguration = routeConfiguration.getExtractConfiguration();
+            addExtractVariables(httpServletRequest, requestHeaders, templateVariables, extractConfiguration);
+            addRequestVariables(httpServletRequest, requestHeaders, templateVariables);
+            return Optional.of(routeConfiguration);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private void addRequestVariables(
+            final HttpServletRequest httpServletRequest,
+            final Map<String, String> requestHeaders,
+            final Map<String, String> templateVariables
+    ) {
+        templateVariables.put("request.path", httpServletRequest.getRequestURI());
+        templateVariables.put("request.method", httpServletRequest.getMethod());
+        templateVariables.put("request.query", httpServletRequest.getQueryString());
+        for (String header : requestHeaders.keySet()) {
+            templateVariables.put("request.header." + header, requestHeaders.get(header));
+        }
+    }
+
+    private GlobalConfiguration.RouteConfiguration getNotFoundRouteConfiguration(
+            final GlobalConfiguration.DomainConfiguration domainConfiguration,
+            final Map<String, String> requestHeaders,
+            final String method
+    ) {
         final String notFoundUrl = nonNull(domainConfiguration.getParameters().get(ARCHURA_DOMAIN_NOT_FOUND_URL))
                 ? domainConfiguration.getParameters().get(ARCHURA_DOMAIN_NOT_FOUND_URL) : "/not-found";
 
         final GlobalConfiguration.RouteConfiguration notFoundRoute = new GlobalConfiguration.RouteConfiguration();
-        final GlobalConfiguration.MapConfiguration notFoundMap = createNotFoundMap(httpServletRequest, method, notFoundUrl);
+        final GlobalConfiguration.MapConfiguration notFoundMap = createNotFoundMap(requestHeaders, method, notFoundUrl);
         notFoundRoute.setMapConfiguration(notFoundMap);
         return notFoundRoute;
     }
 
     private GlobalConfiguration.MapConfiguration createNotFoundMap(
-            final HttpServletRequest httpServletRequest,
+            final Map<String, String> requestHeaders,
             final String method,
             final String notFoundUrl
     ) {
         final GlobalConfiguration.MapConfiguration notFoundMap = new GlobalConfiguration.MapConfiguration();
         notFoundMap.setUrl(notFoundUrl);
         notFoundMap.setMethodMap(Map.of(method, HTTP_METHOD_GET));
-        notFoundMap.setHeaders(getRequestHeaders(httpServletRequest));
+        notFoundMap.setHeaders(requestHeaders);
         return notFoundMap;
     }
 

@@ -1,6 +1,7 @@
 package io.archura.router.config;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -98,6 +99,7 @@ public class GlobalConfiguration {
     }
 
     @Data
+    @Builder(toBuilder = true)
     @AllArgsConstructor
     @NoArgsConstructor
     public static class RouteConfiguration {
