@@ -11,6 +11,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static java.util.Objects.nonNull;
 
@@ -146,6 +147,11 @@ public class GlobalConfiguration {
         private String regex;
 
         /**
+         * Compiled pattern.
+         */
+        private Pattern pattern;
+
+        /**
          * Capture groups to be extracted from the path.
          * i.e. ["tenantId"]
          */
@@ -175,6 +181,11 @@ public class GlobalConfiguration {
         private String regex;
 
         /**
+         * Compiled pattern.
+         */
+        private Pattern pattern;
+
+        /**
          * Capture groups to be extracted from the path.
          * i.e. ["tenantId"]
          */
@@ -201,6 +212,11 @@ public class GlobalConfiguration {
          * You can refer to it using the ${match.query.tenantId} or ${extract.query.tenantId} placeholders.
          */
         private String regex;
+
+        /**
+         * Compiled pattern.
+         */
+        private Pattern pattern;
 
         /**
          * Capture groups to be extracted from the path.
