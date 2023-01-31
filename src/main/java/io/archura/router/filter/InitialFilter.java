@@ -69,7 +69,6 @@ public class InitialFilter implements Filter {
                         && !runRoutePreFilters(httpServletRequest, httpServletResponse);
 
         if (notHandledByPreFilters) {
-
             try {
                 // handle current route
                 final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
@@ -85,19 +84,19 @@ public class InitialFilter implements Filter {
                     populateHttpServletResponse(httpServletResponse, httpResponse);
 
                     // run global post-filters, domain post-filters, tenant post-filters, and route post-filters
-//                boolean handledByPostFilters =
-//                        !runGlobalPostFilters(httpServletRequest, httpServletResponse)
-//                                && !runDomainPostFilters(httpServletRequest, httpServletResponse)
-//                                && !runTenantPostFilters(httpServletRequest, httpServletResponse)
-//                                && !runRoutePostFilters(httpServletRequest, httpServletResponse);
+                    boolean handledByPostFilters =
+                            !runGlobalPostFilters(httpServletRequest, httpServletResponse)
+                                    && !runDomainPostFilters(httpServletRequest, httpServletResponse)
+                                    && !runTenantPostFilters(httpServletRequest, httpServletResponse)
+                                    && !runRoutePostFilters(httpServletRequest, httpServletResponse);
 
-                    boolean handledByPostFilters = false;
                     if (!handledByPostFilters) {
                         // read response from downstream server and write to client
                         writeToHttpServletResponse(httpServletResponse, httpResponse);
+                    } else {
+                        log.debug("request already handled by the post-filters");
                     }
                 }
-
             } catch (Exception e) {
                 log.error("Error occurred while sending downstream request", e);
                 httpServletResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
@@ -115,7 +114,7 @@ public class InitialFilter implements Filter {
         for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : globalConfiguration.getGlobalPreFilters().entrySet()) {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the global filter '%s', will stop processing".formatted(filter.getKey()));
+                log.debug("request already handled by the global pre-filter '%s', will stop processing".formatted(filter.getKey()));
                 return true;
             }
         }
@@ -133,7 +132,7 @@ public class InitialFilter implements Filter {
         for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : domainConfiguration.getDomainPreFilters().entrySet()) {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the domain filter '%s', will stop processing".formatted(filter.getKey()));
+                log.debug("request already handled by the domain pre-filter '%s', will stop processing".formatted(filter.getKey()));
                 return true;
             }
         }
@@ -157,7 +156,7 @@ public class InitialFilter implements Filter {
         for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : tenantConfiguration.getTenantPreFilters().entrySet()) {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the tenant filter '%s', will stop processing".formatted(filter.getKey()));
+                log.debug("request already handled by the tenant pre-filter '%s', will stop processing".formatted(filter.getKey()));
                 return true;
             }
         }
@@ -180,7 +179,7 @@ public class InitialFilter implements Filter {
         for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : currentRoute.getRoutePreFilters().entrySet()) {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the route filter '%s', will stop processing".formatted(filter.getKey()));
+                log.debug("request already handled by the route pre-filter '%s', will stop processing".formatted(filter.getKey()));
                 return true;
             }
         }
@@ -235,6 +234,22 @@ public class InitialFilter implements Filter {
         return httpRequest;
     }
 
+    private static HttpRequest buildHttpRequest(
+            final String downstreamRequestUrl,
+            final Map<String, String> downstreamRequestHeaders,
+            final String downstreamRequestHttpMethod,
+            final long downstreamConnectionTimeout
+    ) {
+        HttpRequest.Builder httpRequestBuilder = HttpRequest.newBuilder()
+                .timeout(Duration.ofMillis(downstreamConnectionTimeout))
+                .uri(URI.create(downstreamRequestUrl))
+                .method(downstreamRequestHttpMethod, HttpRequest.BodyPublishers.noBody());
+        for (String header : downstreamRequestHeaders.keySet()) {
+            httpRequestBuilder = httpRequestBuilder.header(header, downstreamRequestHeaders.get(header));
+        }
+        return httpRequestBuilder.build();
+    }
+
     private static void populateHttpServletResponse(
             final HttpServletResponse httpServletResponse,
             final HttpResponse<InputStream> httpResponse
@@ -261,20 +276,81 @@ public class InitialFilter implements Filter {
         httpServletResponse.setContentType(responseContentType);
     }
 
-    private static HttpRequest buildHttpRequest(
-            final String downstreamRequestUrl,
-            final Map<String, String> downstreamRequestHeaders,
-            final String downstreamRequestHttpMethod,
-            final long downstreamConnectionTimeout
-    ) {
-        HttpRequest.Builder httpRequestBuilder = HttpRequest.newBuilder()
-                .timeout(Duration.ofMillis(downstreamConnectionTimeout))
-                .uri(URI.create(downstreamRequestUrl))
-                .method(downstreamRequestHttpMethod, HttpRequest.BodyPublishers.noBody());
-        for (String header : downstreamRequestHeaders.keySet()) {
-            httpRequestBuilder = httpRequestBuilder.header(header, downstreamRequestHeaders.get(header));
+    private boolean runGlobalPostFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+        // run global pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : globalConfiguration.getGlobalPostFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the post-global filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
+            }
         }
-        return httpRequestBuilder.build();
+        return false;
+    }
+
+    private boolean runDomainPostFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+        // get current domain configuration
+        if (isNull(httpServletRequest.getAttribute(ARCHURA_DOMAIN))) {
+            httpServletRequest.setAttribute(ARCHURA_DOMAIN, DEFAULT_DOMAIN);
+        }
+        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
+        // run domain pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : domainConfiguration.getDomainPostFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the domain post-filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean runTenantPostFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse
+    ) {
+        // get current domain configuration
+        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
+        // get current tenant configuration
+        if (isNull(httpServletRequest.getAttribute(ARCHURA_TENANT))) {
+            httpServletRequest.setAttribute(ARCHURA_TENANT, DEFAULT_TENANT);
+        }
+        final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
+        // run tenant pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : tenantConfiguration.getTenantPostFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the tenant post-filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean runRoutePostFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse
+    ) {
+        // get domain and tenant configurations
+        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
+        final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
+        // find current route configuration
+        final GlobalConfiguration.RouteConfiguration currentRoute = findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
+        httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
+        // run route pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : currentRoute.getRoutePostFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the route post-filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
+            }
+        }
+        return false;
     }
 
     private GlobalConfiguration.RouteConfiguration findCurrentRoute(
