@@ -81,6 +81,7 @@ public class GlobalConfiguration {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class DomainConfiguration {
+        private String name;
         private String customerAccount;
         private Map<String, String> parameters = new HashMap<>();
         private Map<String, FilterConfiguration> domainPreFilters = new HashMap<>();
@@ -93,8 +94,9 @@ public class GlobalConfiguration {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class TenantConfiguration {
-        private Map<String, FilterConfiguration> tenantPreFilters = new HashMap<>();
-        private Map<String, FilterConfiguration> tenantPostFilters = new HashMap<>();
+        private String name;
+        private Map<String, FilterConfiguration> preFilters = new HashMap<>();
+        private Map<String, FilterConfiguration> postFilters = new HashMap<>();
         private Map<String, List<RouteConfiguration>> methodRoutes = new HashMap<>();
 
     }
@@ -104,9 +106,9 @@ public class GlobalConfiguration {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class RouteConfiguration {
-        private String id;
-        private Map<String, FilterConfiguration> routePreFilters = new HashMap<>();
-        private Map<String, FilterConfiguration> routePostFilters = new HashMap<>();
+        private String name;
+        private Map<String, FilterConfiguration> preFilters = new HashMap<>();
+        private Map<String, FilterConfiguration> postFilters = new HashMap<>();
         private MatchConfiguration matchConfiguration;
         private ExtractConfiguration extractConfiguration;
         private MapConfiguration mapConfiguration;

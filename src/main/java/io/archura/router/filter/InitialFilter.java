@@ -111,56 +111,34 @@ public class InitialFilter implements Filter {
 
     private boolean runGlobalPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // run global pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : globalConfiguration.getGlobalPreFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
-            if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the global pre-filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
-            }
-        }
-        return false;
+        return runPreFilters(httpServletRequest, httpServletResponse, globalConfiguration.getGlobalPreFilters());
     }
 
     private boolean runDomainPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // get current domain configuration
-        if (isNull(httpServletRequest.getAttribute(ARCHURA_DOMAIN))) {
-            httpServletRequest.setAttribute(ARCHURA_DOMAIN, DEFAULT_DOMAIN);
+        if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN))) {
+            final GlobalConfiguration.DomainConfiguration defaultDomain = new GlobalConfiguration.DomainConfiguration();
+            httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, defaultDomain);
         }
-        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
+        final GlobalConfiguration.DomainConfiguration domainConfiguration =
+                (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
         // run domain pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : domainConfiguration.getDomainPreFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
-            if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the domain pre-filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
-            }
-        }
-        return false;
+        return runPreFilters(httpServletRequest, httpServletResponse, domainConfiguration.getDomainPreFilters());
     }
 
     private boolean runTenantPreFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // get current domain configuration
-        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
         // get current tenant configuration
-        if (isNull(httpServletRequest.getAttribute(ARCHURA_TENANT))) {
-            httpServletRequest.setAttribute(ARCHURA_TENANT, DEFAULT_TENANT);
+        if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT))) {
+            final GlobalConfiguration.TenantConfiguration defaultTenant = new GlobalConfiguration.TenantConfiguration();
+            httpServletRequest.setAttribute(ARCHURA_CURRENT_TENANT, defaultTenant);
         }
-        final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration =
+                (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
         // run tenant pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : tenantConfiguration.getTenantPreFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
-            if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the tenant pre-filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
-            }
-        }
-        return false;
+        return runPreFilters(httpServletRequest, httpServletResponse, tenantConfiguration.getPreFilters());
     }
 
     private boolean runRoutePreFilters(
@@ -168,25 +146,29 @@ public class InitialFilter implements Filter {
             final HttpServletResponse httpServletResponse
     ) {
         // get domain and tenant configurations
-        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
-        final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
+        final GlobalConfiguration.DomainConfiguration domainConfiguration =
+                (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration =
+                (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
         // find current route configuration
         final GlobalConfiguration.RouteConfiguration currentRoute = findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
         httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
         // run route pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : currentRoute.getRoutePreFilters().entrySet()) {
+        return runPreFilters(httpServletRequest, httpServletResponse, currentRoute.getPreFilters());
+    }
+
+    private boolean runPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Map<String, GlobalConfiguration.FilterConfiguration> filters) {
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : filters.entrySet()) {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the route pre-filter '%s', will stop processing".formatted(filter.getKey()));
+                log.debug("request already handled by the pre-filter '%s', will stop processing".formatted(filter.getKey()));
                 return true;
             }
         }
         return false;
     }
 
-    private static void handlePredefinedResponse(
+    private void handlePredefinedResponse(
             final HttpServletResponse httpServletResponse,
             final GlobalConfiguration.PredefinedResponseConfiguration predefinedResponseConfiguration
     ) throws IOException {
@@ -198,7 +180,7 @@ public class InitialFilter implements Filter {
     }
 
 
-    private static void writeToHttpServletResponse(
+    private void writeToHttpServletResponse(
             final HttpServletResponse httpServletResponse,
             final HttpResponse<InputStream> httpResponse
     ) throws IOException {
@@ -214,11 +196,11 @@ public class InitialFilter implements Filter {
         httpServletResponse.setContentLength(responseTotalLength);
     }
 
-    private static HttpRequest buildHttpRequest(
+    private HttpRequest buildHttpRequest(
             final HttpServletRequest httpServletRequest
     ) {
         final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
-        final String currentRouteId = currentRoute.getId();
+        final String currentRouteId = currentRoute.getName();
         final GlobalConfiguration.MapConfiguration currentRouteMapConfiguration = currentRoute.getMapConfiguration();
         final String downstreamRequestUrl = currentRouteMapConfiguration.getUrl();
         final Map<String, String> downstreamRequestHeaders = currentRouteMapConfiguration.getHeaders();
@@ -234,7 +216,7 @@ public class InitialFilter implements Filter {
         return httpRequest;
     }
 
-    private static HttpRequest buildHttpRequest(
+    private HttpRequest buildHttpRequest(
             final String downstreamRequestUrl,
             final Map<String, String> downstreamRequestHeaders,
             final String downstreamRequestHttpMethod,
@@ -244,13 +226,13 @@ public class InitialFilter implements Filter {
                 .timeout(Duration.ofMillis(downstreamConnectionTimeout))
                 .uri(URI.create(downstreamRequestUrl))
                 .method(downstreamRequestHttpMethod, HttpRequest.BodyPublishers.noBody());
-        for (String header : downstreamRequestHeaders.keySet()) {
-            httpRequestBuilder = httpRequestBuilder.header(header, downstreamRequestHeaders.get(header));
+        for (Map.Entry<String, String> entry : downstreamRequestHeaders.entrySet()) {
+            httpRequestBuilder = httpRequestBuilder.header(entry.getKey(), entry.getValue());
         }
         return httpRequestBuilder.build();
     }
 
-    private static void populateHttpServletResponse(
+    private void populateHttpServletResponse(
             final HttpServletResponse httpServletResponse,
             final HttpResponse<InputStream> httpResponse
     ) {
@@ -276,77 +258,56 @@ public class InitialFilter implements Filter {
         httpServletResponse.setContentType(responseContentType);
     }
 
-    private boolean runGlobalPostFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
-        // run global pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : globalConfiguration.getGlobalPostFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
-            if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the post-global filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
-            }
-        }
-        return false;
+    private boolean runGlobalPostFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse
+    ) {
+        // run global post-filters
+        return runPostFilters(httpServletRequest, httpServletResponse, globalConfiguration.getGlobalPostFilters());
     }
 
-    private boolean runDomainPostFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+    private boolean runDomainPostFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse
+    ) {
         // get current domain configuration
-        if (isNull(httpServletRequest.getAttribute(ARCHURA_DOMAIN))) {
-            httpServletRequest.setAttribute(ARCHURA_DOMAIN, DEFAULT_DOMAIN);
-        }
-        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
-        // run domain pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : domainConfiguration.getDomainPostFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
-            if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the domain post-filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
-            }
-        }
-        return false;
+        final GlobalConfiguration.DomainConfiguration domainConfiguration =
+                (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+        // run domain post-filters
+        return runPostFilters(httpServletRequest, httpServletResponse, domainConfiguration.getDomainPostFilters());
     }
 
     private boolean runTenantPostFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // get current domain configuration
-        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
         // get current tenant configuration
-        if (isNull(httpServletRequest.getAttribute(ARCHURA_TENANT))) {
-            httpServletRequest.setAttribute(ARCHURA_TENANT, DEFAULT_TENANT);
-        }
-        final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
-        // run tenant pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : tenantConfiguration.getTenantPostFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
-            if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the tenant post-filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
-            }
-        }
-        return false;
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration =
+                (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
+        // run tenant post-filters
+        return runPostFilters(httpServletRequest, httpServletResponse, tenantConfiguration.getPostFilters());
     }
 
     private boolean runRoutePostFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // get domain and tenant configurations
-        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
-        final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
-        // find current route configuration
-        final GlobalConfiguration.RouteConfiguration currentRoute = findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
-        httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
-        // run route pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : currentRoute.getRoutePostFilters().entrySet()) {
+        // get current route configuration
+        final GlobalConfiguration.RouteConfiguration currentRoute =
+                (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
+        // run tenant post-filters
+        return runPostFilters(httpServletRequest, httpServletResponse, currentRoute.getPostFilters());
+    }
+
+    private boolean runPostFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse,
+            final Map<String, GlobalConfiguration.FilterConfiguration> filters
+    ) {
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : filters.entrySet()) {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
-                log.debug("request already handled by the route post-filter '%s', will stop processing".formatted(filter.getKey()));
+                log.debug("request already handled by the post-filter '%s', will stop processing".formatted(filter.getKey()));
                 return true;
             }
         }
@@ -394,7 +355,7 @@ public class InitialFilter implements Filter {
             if (matched.isPresent()) {
                 final GlobalConfiguration.RouteConfiguration matchedRouteConfiguration = matched.get();
                 final GlobalConfiguration.MapConfiguration mapConfiguration = matchedRouteConfiguration.getMapConfiguration();
-                final GlobalConfiguration.MapConfiguration appliedMapConfiguration = applyTemplateVariables(mapConfiguration, templateVariables);
+                final GlobalConfiguration.MapConfiguration appliedMapConfiguration = applyTemplateVariables(httpServletRequest, mapConfiguration, templateVariables);
                 final GlobalConfiguration.RouteConfiguration appliedRouteConfiguration = matchedRouteConfiguration.toBuilder()
                         .mapConfiguration(appliedMapConfiguration)
                         .build();
@@ -405,24 +366,29 @@ public class InitialFilter implements Filter {
     }
 
     private GlobalConfiguration.MapConfiguration applyTemplateVariables(
+            final HttpServletRequest httpServletRequest,
             final GlobalConfiguration.MapConfiguration mapConfiguration,
             final Map<String, String> templateVariables
     ) {
+        // replace template variables in url and headers
         String url = mapConfiguration.getUrl();
-        final Map<String, String> headers = mapConfiguration.getHeaders();
-
-        for (String variable : templateVariables.keySet()) {
-            final String value = templateVariables.get(variable);
-            final String variablePattern = "\\$\\{" + variable + "\\}";
+        final Map<String, String> mapHeaders = mapConfiguration.getHeaders();
+        for (Map.Entry<String, String> templateVariable : templateVariables.entrySet()) {
+            final String value = templateVariables.get(templateVariable.getKey());
+            final String variablePattern = "\\$\\{" + templateVariable.getKey() + "}";
             url = url.replaceAll(variablePattern, value);
-            for (String header : headers.keySet()) {
-                final String headerValue = headers.get(header);
-                headers.put(header, headerValue.replaceAll(variablePattern, value));
+            for (Map.Entry<String, String> entry : mapHeaders.entrySet()) {
+                final String headerValue = mapHeaders.get(entry.getKey());
+                mapHeaders.put(entry.getKey(), headerValue.replaceAll(variablePattern, value));
             }
         }
+        // override request headers with map headers
+        final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
+        requestHeaders.putAll(mapHeaders);
+        // return new map configuration
         final GlobalConfiguration.MapConfiguration appliedMapConfiguration = new GlobalConfiguration.MapConfiguration();
         appliedMapConfiguration.setUrl(url);
-        appliedMapConfiguration.setHeaders(headers);
+        appliedMapConfiguration.setHeaders(requestHeaders);
         appliedMapConfiguration.setMethodMap(mapConfiguration.getMethodMap());
         return appliedMapConfiguration;
     }
@@ -434,6 +400,16 @@ public class InitialFilter implements Filter {
             final GlobalConfiguration.ExtractConfiguration extractConfiguration
     ) {
         final GlobalConfiguration.RoutePathConfiguration routePathConfiguration = extractConfiguration.getRoutePathConfiguration();
+        extractPathVariables(httpServletRequest, templateVariables, routePathConfiguration);
+
+        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = extractConfiguration.getRouteHeaderConfiguration();
+        extractHeaderVariables(requestHeaders, templateVariables, headerConfiguration);
+
+        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = extractConfiguration.getRouteQueryConfiguration();
+        extractQueryVariables(httpServletRequest, templateVariables, queryConfiguration);
+    }
+
+    private void extractPathVariables(HttpServletRequest httpServletRequest, Map<String, String> templateVariables, GlobalConfiguration.RoutePathConfiguration routePathConfiguration) {
         if (nonNull(routePathConfiguration)) {
             final String input = httpServletRequest.getRequestURI();
             final String regex = routePathConfiguration.getRegex();
@@ -446,7 +422,9 @@ public class InitialFilter implements Filter {
                 }
             }
         }
-        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = extractConfiguration.getRouteHeaderConfiguration();
+    }
+
+    private void extractHeaderVariables(Map<String, String> requestHeaders, Map<String, String> templateVariables, GlobalConfiguration.RouteHeaderConfiguration headerConfiguration) {
         if (nonNull(headerConfiguration) && requestHeaders.containsKey(headerConfiguration.getName())) {
             final String input = requestHeaders.get(headerConfiguration.getName());
             final String regex = headerConfiguration.getRegex();
@@ -459,7 +437,9 @@ public class InitialFilter implements Filter {
                 }
             }
         }
-        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = extractConfiguration.getRouteQueryConfiguration();
+    }
+
+    private void extractQueryVariables(HttpServletRequest httpServletRequest, Map<String, String> templateVariables, GlobalConfiguration.RouteQueryConfiguration queryConfiguration) {
         if (nonNull(queryConfiguration) && httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
             final String input = httpServletRequest.getParameter(queryConfiguration.getName());
             final String regex = queryConfiguration.getRegex();
@@ -484,8 +464,26 @@ public class InitialFilter implements Filter {
         boolean match = false;
         final GlobalConfiguration.MatchConfiguration matchConfiguration = routeConfiguration.getMatchConfiguration();
         final GlobalConfiguration.RoutePathConfiguration routePathConfiguration = matchConfiguration.getRoutePathConfiguration();
+        match = isPathMatch(uri, templateVariables, match, routePathConfiguration);
+
+        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = matchConfiguration.getRouteHeaderConfiguration();
+        match = isHeaderMatch(requestHeaders, templateVariables, match, headerConfiguration);
+
+        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = matchConfiguration.getRouteQueryConfiguration();
+        match = isQueryMatch(httpServletRequest, templateVariables, match, routePathConfiguration, queryConfiguration);
+
+        if (match) {
+            final GlobalConfiguration.ExtractConfiguration extractConfiguration = routeConfiguration.getExtractConfiguration();
+            addExtractVariables(httpServletRequest, requestHeaders, templateVariables, extractConfiguration);
+            addRequestVariables(httpServletRequest, requestHeaders, templateVariables);
+            return Optional.of(routeConfiguration);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private boolean isPathMatch(String input, Map<String, String> templateVariables, boolean match, GlobalConfiguration.RoutePathConfiguration routePathConfiguration) {
         if (nonNull(routePathConfiguration)) {
-            final String input = uri;
             final String regex = routePathConfiguration.getRegex();
             final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
             if (isNull(routePathConfiguration.getPattern())) {
@@ -502,7 +500,10 @@ public class InitialFilter implements Filter {
                 match = false;
             }
         }
-        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = matchConfiguration.getRouteHeaderConfiguration();
+        return match;
+    }
+
+    private boolean isHeaderMatch(Map<String, String> requestHeaders, Map<String, String> templateVariables, boolean match, GlobalConfiguration.RouteHeaderConfiguration headerConfiguration) {
         if (nonNull(headerConfiguration)) {
             if (requestHeaders.containsKey(headerConfiguration.getName())) {
                 final String input = requestHeaders.get(headerConfiguration.getName());
@@ -525,7 +526,10 @@ public class InitialFilter implements Filter {
                 match = false;
             }
         }
-        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = matchConfiguration.getRouteQueryConfiguration();
+        return match;
+    }
+
+    private boolean isQueryMatch(HttpServletRequest httpServletRequest, Map<String, String> templateVariables, boolean match, GlobalConfiguration.RoutePathConfiguration routePathConfiguration, GlobalConfiguration.RouteQueryConfiguration queryConfiguration) {
         if (nonNull(queryConfiguration)) {
             if (httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
                 final String input = httpServletRequest.getParameter(queryConfiguration.getName());
@@ -548,14 +552,7 @@ public class InitialFilter implements Filter {
                 match = false;
             }
         }
-        if (match) {
-            final GlobalConfiguration.ExtractConfiguration extractConfiguration = routeConfiguration.getExtractConfiguration();
-            addExtractVariables(httpServletRequest, requestHeaders, templateVariables, extractConfiguration);
-            addRequestVariables(httpServletRequest, requestHeaders, templateVariables);
-            return Optional.of(routeConfiguration);
-        } else {
-            return Optional.empty();
-        }
+        return match;
     }
 
     private void addRequestVariables(
