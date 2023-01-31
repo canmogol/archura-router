@@ -4,9 +4,8 @@
   "description": "A websocket server example",
   "main": "server.js",
   "dependencies": {
-    "ws": "^7.4.2"
+    "ws": "^7.5.9"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -14,8 +13,12 @@
     "websocket"
   ],
   "repository": {
-    "url": "https://github.com/tigoe/NodeExamples"
+    "url": "git+https://github.com/tigoe/NodeExamples.git"
   },
   "author": "Tom Igoe",
-  "license": "ISC"
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tigoe/NodeExamples/issues"
+  },
+  "homepage": "https://github.com/tigoe/NodeExamples#readme"
 }
