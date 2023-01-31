@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -39,14 +40,13 @@ public class GlobalConfigurationListener implements ApplicationListener<Notifica
         // loop until configuration is fetched
         while (!this.globalConfigurationFetched) {
             try {
-                final GlobalConfiguration from = getGlobalConfiguration(request);
+                final GlobalConfiguration from = fetchGlobalConfiguration(request);
                 // update global configuration
                 globalConfiguration.copy(from);
                 // break loop
                 this.globalConfigurationFetched = true;
                 log.debug("Configuration fetched from configuration server");
-            } catch (InterruptedException | IOException e) {
-                log.error("Failed to fetch configuration from configuration server", e);
+            } catch (IOException e) {
                 waitAndContinue();
             }
         }
@@ -65,16 +65,27 @@ public class GlobalConfigurationListener implements ApplicationListener<Notifica
                 .build();
     }
 
-    private GlobalConfiguration getGlobalConfiguration(final HttpRequest request) throws IOException, InterruptedException {
-        final HttpClient httpClient = createHttpClient();
-        // send request
-        final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        // handle response
-        if (response.statusCode() != 200) {
-            throw new IOException("Configuration server returned status code " + response.statusCode());
+    private GlobalConfiguration fetchGlobalConfiguration(final HttpRequest request) throws IOException {
+        try {
+            final HttpClient httpClient = createHttpClient();
+            // send request
+            final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            // handle response
+            if (response.statusCode() != 200) {
+                throw new IOException("Configuration server returned status code " + response.statusCode());
+            }
+            // parse response
+            return objectMapper.readValue(response.body(), GlobalConfiguration.class);
+        } catch (IOException | InterruptedException e) {
+            final String error = "Failed to connect to configuration server, url: '%s', exception: '%s', message: '%s'"
+                    .formatted(
+                            request.uri().toURL(),
+                            e.getClass().getSimpleName(),
+                            e.getMessage()
+                    );
+            log.error(error);
+            throw new ConnectException(error);
         }
-        // parse response
-        return objectMapper.readValue(response.body(), GlobalConfiguration.class);
     }
 
     private HttpClient createHttpClient() {

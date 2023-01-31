@@ -20,14 +20,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_DOMAIN;
+import static io.archura.router.filter.ArchuraKeys.DEFAULT_DOMAIN;
 import static java.util.Objects.nonNull;
 
 @Slf4j
 @RequiredArgsConstructor
 @Component
 public class DomainFilter implements ArchuraFilter {
-    public static final String DEFAULT_DOMAIN = "default";
-    public static final String DEFAULT_CUSTOMER_ACCOUNT = "default";
     private final GlobalConfiguration globalConfiguration;
     private final Mapper mapper;
 
@@ -45,12 +45,18 @@ public class DomainFilter implements ArchuraFilter {
             optionalDomainConfiguration.ifPresent(domainConfiguration -> domains.put(host, domainConfiguration));
         }
         if (domains.containsKey(host)) {
-            httpServletRequest.setAttribute("archura.domain", host);
-            httpServletRequest.setAttribute("archura.customer", domains.get(host).getCustomerAccount());
+            final GlobalConfiguration.DomainConfiguration domainConfiguration = domains.get(host);
+            httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, domainConfiguration);
         } else {
-            httpServletRequest.setAttribute("archura.domain", DEFAULT_DOMAIN);
-            httpServletRequest.setAttribute("archura.customer", DEFAULT_CUSTOMER_ACCOUNT);
+            httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, createDefaultDomain());
         }
+    }
+
+    private static GlobalConfiguration.DomainConfiguration createDefaultDomain() {
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = new GlobalConfiguration.DomainConfiguration();
+        domainConfiguration.setName(DEFAULT_DOMAIN);
+        domainConfiguration.setCustomerAccount(DEFAULT_DOMAIN);
+        return domainConfiguration;
     }
 
     private Optional<GlobalConfiguration.DomainConfiguration> fetchDomainConfiguration(final String domain) {

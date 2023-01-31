@@ -46,7 +46,13 @@ public class NotificationServerConnector {
                 sendPingToServer(webSocket);
             }
         } catch (Exception e) {
-            log.error("Failed to connect to notification server", e);
+            final String error = "Failed to connect to notification server, url: '%s', exception: '%s', message: '%s'"
+                    .formatted(
+                            globalConfiguration.getNotificationServerURL(),
+                            e.getClass().getSimpleName(),
+                            e.getMessage()
+                    );
+            log.error(error);
             if (nonNull(webSocket)) {
                 notificationServerListener.onError(webSocket, e);
                 notificationServerListener.onClose(webSocket, 0, "Connection closed");
@@ -72,8 +78,7 @@ public class NotificationServerConnector {
 
     private void sendPingToServer(WebSocket webSocket) {
         waitAndContinue();
-        webSocket.sendPing(pingMessage)
-                .join();
+        webSocket.sendPing(pingMessage).join();
     }
 
     private void waitAndContinue() {
