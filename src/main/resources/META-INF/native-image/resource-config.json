@@ -32,7 +32,34 @@
       "pattern":"\\Qio/archura/router/config/GlobalConfiguration$DomainConfiguration.class\\E"
     }, 
     {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$ExtractConfiguration.class\\E"
+    }, 
+    {
       "pattern":"\\Qio/archura/router/config/GlobalConfiguration$FilterConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$MapConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$MatchConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$PredefinedResponseConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$RouteConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$RouteHeaderConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$RoutePathConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$RouteQueryConfiguration.class\\E"
+    }, 
+    {
+      "pattern":"\\Qio/archura/router/config/GlobalConfiguration$TenantConfiguration.class\\E"
     }, 
     {
       "pattern":"\\Qio/archura/router/config/GlobalConfiguration.class\\E"
@@ -90,9 +117,6 @@
     }, 
     {
       "pattern":"\\Qio/archura/router/filter/internal/RouteMatchingFilter.class\\E"
-    }, 
-    {
-      "pattern":"\\Qio/archura/router/filter/internal/RoutingFilter.class\\E"
     }, 
     {
       "pattern":"\\Qio/archura/router/filter/internal/TenantFilter.class\\E"
@@ -517,6 +541,10 @@
   ]},
   "bundles":[
     {
+      "name":"jakarta.servlet.LocalStrings",
+      "locales":[""]
+    }, 
+    {
       "name":"jakarta.servlet.http.LocalStrings",
       "locales":[""]
     }, 
@@ -593,6 +621,10 @@
       "locales":[""]
     }, 
     {
+      "name":"org.apache.coyote.http2.LocalStrings",
+      "locales":[""]
+    }, 
+    {
       "name":"org.apache.naming.LocalStrings",
       "locales":[""]
     }, 
@@ -630,6 +662,10 @@
     }, 
     {
       "name":"org.apache.tomcat.util.scan.LocalStrings",
+      "locales":[""]
+    }, 
+    {
+      "name":"org.apache.tomcat.util.threads.LocalStrings",
       "locales":[""]
     }, 
     {

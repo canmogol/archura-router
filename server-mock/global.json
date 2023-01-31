@@ -1,0 +1,42 @@
+{
+  "configurationServerURL": "https://localhost:9010",
+  "notificationServerURL": "https://localhost:9000",
+  "preFilters": {
+    "domain": {
+      "parameters": {}
+    }
+  },
+  "domains": {
+    "localhost:8080": {
+      "name": "localhost",
+      "customerAccount": "default",
+      "preFilters": {},
+      "postFilters": {},
+      "tenants": {
+        "default": {
+          "name": "default",
+          "preFilters": {},
+          "postFilters": {},
+          "methodRoutes": {
+            "GET": [
+              {
+                "name": "route-01",
+                "preFilters": {},
+                "postFilters": {},
+                "matchConfiguration": {},
+                "extractConfiguration": {},
+                "mapConfiguration": {
+                  "url": "http://192.168.68.105:9090/test.txt",
+                  "methodMap": {
+                    "GET": "GET"
+                  },
+                  "headers": {}
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

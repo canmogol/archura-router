@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -59,8 +60,9 @@ public class GlobalConfigurationListener implements ApplicationListener<Notifica
             builder = builder.header(entry.getKey(), entry.getValue());
         }
         // prepare request
+        final String url = "%s/global".formatted(globalConfiguration.getConfigurationServerURL());
         return builder
-                .uri(globalConfiguration.getConfigurationServerURL())
+                .uri(URI.create(url))
                 .GET()
                 .build();
     }

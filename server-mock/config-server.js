@@ -1,11 +1,12 @@
 var http = require('http');
+var fs = require('fs');
 
 var server = http.createServer(function (req, res) {
-
-    if (req.url == '/') { //check the URL of the current request
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.write(JSON.stringify({}));
-            res.end();
+    if (req.url == '/global') {
+        const data = fs.readFileSync('./global.json', 'utf8');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.write(data);
+        res.end();
     }
 });
 

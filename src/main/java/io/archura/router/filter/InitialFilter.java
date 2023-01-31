@@ -111,7 +111,7 @@ public class InitialFilter implements Filter {
 
     private boolean runGlobalPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // run global pre-filters
-        return runPreFilters(httpServletRequest, httpServletResponse, globalConfiguration.getGlobalPreFilters());
+        return runPreFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPreFilters());
     }
 
     private boolean runDomainPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
@@ -123,7 +123,7 @@ public class InitialFilter implements Filter {
         final GlobalConfiguration.DomainConfiguration domainConfiguration =
                 (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
         // run domain pre-filters
-        return runPreFilters(httpServletRequest, httpServletResponse, domainConfiguration.getDomainPreFilters());
+        return runPreFilters(httpServletRequest, httpServletResponse, domainConfiguration.getPreFilters());
     }
 
     private boolean runTenantPreFilters(
@@ -263,7 +263,7 @@ public class InitialFilter implements Filter {
             final HttpServletResponse httpServletResponse
     ) {
         // run global post-filters
-        return runPostFilters(httpServletRequest, httpServletResponse, globalConfiguration.getGlobalPostFilters());
+        return runPostFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPostFilters());
     }
 
     private boolean runDomainPostFilters(
@@ -274,7 +274,7 @@ public class InitialFilter implements Filter {
         final GlobalConfiguration.DomainConfiguration domainConfiguration =
                 (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
         // run domain post-filters
-        return runPostFilters(httpServletRequest, httpServletResponse, domainConfiguration.getDomainPostFilters());
+        return runPostFilters(httpServletRequest, httpServletResponse, domainConfiguration.getPostFilters());
     }
 
     private boolean runTenantPostFilters(

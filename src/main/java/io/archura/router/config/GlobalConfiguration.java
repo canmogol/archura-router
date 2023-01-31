@@ -45,8 +45,8 @@ public class GlobalConfiguration {
     @Value("${notification.server.retry.interval:10000}")
     private long notificationServerRetryInterval;
 
-    private Map<String, FilterConfiguration> globalPreFilters = new HashMap<>();
-    private Map<String, FilterConfiguration> globalPostFilters = new HashMap<>();
+    private Map<String, FilterConfiguration> preFilters = new HashMap<>();
+    private Map<String, FilterConfiguration> postFilters = new HashMap<>();
     private Map<String, DomainConfiguration> domains = new HashMap<>();
 
     public void copy(final GlobalConfiguration from) {
@@ -63,6 +63,9 @@ public class GlobalConfiguration {
             this.notificationServerRequestHeaders = from.getNotificationServerRequestHeaders();
             this.notificationServerConnectionTimeout = from.getNotificationServerConnectionTimeout();
             this.notificationServerRetryInterval = from.getNotificationServerRetryInterval();
+            this.domains = from.getDomains();
+            this.preFilters = from.getPreFilters();
+            this.postFilters = from.getPostFilters();
         }
     }
 
@@ -84,8 +87,8 @@ public class GlobalConfiguration {
         private String name;
         private String customerAccount;
         private Map<String, String> parameters = new HashMap<>();
-        private Map<String, FilterConfiguration> domainPreFilters = new HashMap<>();
-        private Map<String, FilterConfiguration> domainPostFilters = new HashMap<>();
+        private Map<String, FilterConfiguration> preFilters = new HashMap<>();
+        private Map<String, FilterConfiguration> postFilters = new HashMap<>();
         private Map<String, TenantConfiguration> tenants = new HashMap<>();
 
     }

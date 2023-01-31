@@ -109,6 +109,7 @@
   "queryAllDeclaredMethods":true,
   "methods":[
     {"name":"getJsonFactory","parameterTypes":[] }, 
+    {"name":"readValues","parameterTypes":["com.fasterxml.jackson.core.JsonParser","com.fasterxml.jackson.core.type.ResolvedType"] }, 
     {"name":"readValues","parameterTypes":["com.fasterxml.jackson.core.JsonParser","com.fasterxml.jackson.core.type.TypeReference"] }, 
     {"name":"readValues","parameterTypes":["com.fasterxml.jackson.core.JsonParser","java.lang.Class"] }
   ]
@@ -367,6 +368,7 @@
     {"name":"<init>","parameterTypes":[] }, 
     {"name":"applicationRunner","parameterTypes":["io.archura.router.notification.NotificationServerConnector"] }, 
     {"name":"mapper","parameterTypes":["io.archura.router.compat.ArchuraObjectMapper"] }, 
+    {"name":"tomcatCustomizer","parameterTypes":[] }, 
     {"name":"tomcatProtocolHandlerCustomizer","parameterTypes":[] }
   ]
 },
@@ -382,6 +384,7 @@
     {"name":"CGLIB$SET_THREAD_CALLBACKS","parameterTypes":["org.springframework.cglib.proxy.Callback[]"] }, 
     {"name":"applicationRunner","parameterTypes":["io.archura.router.notification.NotificationServerConnector"] }, 
     {"name":"mapper","parameterTypes":["io.archura.router.compat.ArchuraObjectMapper"] }, 
+    {"name":"tomcatCustomizer","parameterTypes":[] }, 
     {"name":"tomcatProtocolHandlerCustomizer","parameterTypes":[] }
   ]
 },
@@ -400,7 +403,7 @@
   "queryAllDeclaredConstructors":true,
   "methods":[
     {"name":"<init>","parameterTypes":[] }, 
-    {"name":"<init>","parameterTypes":["java.net.URI","java.util.Map","long","long","java.net.URI","java.util.Map","long","long","java.util.Map","java.util.Map"] }, 
+    {"name":"<init>","parameterTypes":["java.net.URI","java.util.Map","long","long","java.net.URI","java.util.Map","long","long","java.util.Map","java.util.Map","java.util.Map"] }, 
     {"name":"copy","parameterTypes":["io.archura.router.config.GlobalConfiguration"] }, 
     {"name":"deleteDomainConfigurations","parameterTypes":[] }, 
     {"name":"equals","parameterTypes":["java.lang.Object"] }, 
@@ -409,7 +412,8 @@
     {"name":"getConfigurationServerRetryInterval","parameterTypes":[] }, 
     {"name":"getConfigurationServerURL","parameterTypes":[] }, 
     {"name":"getDomains","parameterTypes":[] }, 
-    {"name":"getGlobalFilterConfigurations","parameterTypes":[] }, 
+    {"name":"getGlobalPostFilters","parameterTypes":[] }, 
+    {"name":"getGlobalPreFilters","parameterTypes":[] }, 
     {"name":"getNotificationServerConnectionTimeout","parameterTypes":[] }, 
     {"name":"getNotificationServerRequestHeaders","parameterTypes":[] }, 
     {"name":"getNotificationServerRetryInterval","parameterTypes":[] }, 
@@ -420,7 +424,8 @@
     {"name":"setConfigurationServerRetryInterval","parameterTypes":["long"] }, 
     {"name":"setConfigurationServerURL","parameterTypes":["java.net.URI"] }, 
     {"name":"setDomains","parameterTypes":["java.util.Map"] }, 
-    {"name":"setGlobalFilterConfigurations","parameterTypes":["java.util.Map"] }, 
+    {"name":"setGlobalPostFilters","parameterTypes":["java.util.Map"] }, 
+    {"name":"setGlobalPreFilters","parameterTypes":["java.util.Map"] }, 
     {"name":"setNotificationServerConnectionTimeout","parameterTypes":["long"] }, 
     {"name":"setNotificationServerRequestHeaders","parameterTypes":["java.util.Map"] }, 
     {"name":"setNotificationServerRetryInterval","parameterTypes":["long"] }, 
@@ -447,7 +452,61 @@
   "queryAllDeclaredConstructors":true
 },
 {
+  "name":"io.archura.router.config.GlobalConfiguration$ExtractConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
   "name":"io.archura.router.config.GlobalConfiguration$FilterConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$MapConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$MatchConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$PredefinedResponseConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$RouteConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$RouteHeaderConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$RoutePathConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$RouteQueryConfiguration",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true
+},
+{
+  "name":"io.archura.router.config.GlobalConfiguration$TenantConfiguration",
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true,
   "queryAllDeclaredConstructors":true
@@ -608,16 +667,6 @@
 },
 {
   "name":"io.archura.router.filter.internal.RouteMatchingFilter",
-  "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"doFilter","parameterTypes":["io.archura.router.config.GlobalConfiguration$FilterConfiguration","jakarta.servlet.http.HttpServletRequest","jakarta.servlet.http.HttpServletResponse"] }
-  ]
-},
-{
-  "name":"io.archura.router.filter.internal.RoutingFilter",
   "allDeclaredFields":true,
   "queryAllDeclaredMethods":true,
   "queryAllDeclaredConstructors":true,
@@ -2188,14 +2237,7 @@
   "name":"org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryConfiguration$EmbeddedJetty"
 },
 {
-  "name":"org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryConfiguration$EmbeddedTomcat",
-  "allDeclaredFields":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[
-    {"name":"<init>","parameterTypes":[] }, 
-    {"name":"tomcatServletWebServerFactory","parameterTypes":["org.springframework.beans.factory.ObjectProvider","org.springframework.beans.factory.ObjectProvider","org.springframework.beans.factory.ObjectProvider"] }
-  ]
+  "name":"org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryConfiguration$EmbeddedTomcat"
 },
 {
   "name":"org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryConfiguration$EmbeddedUndertow"
