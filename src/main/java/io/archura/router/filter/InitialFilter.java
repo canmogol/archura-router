@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.archura.router.filter.ArchuraKeys.*;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
@@ -27,17 +29,6 @@ import static java.util.Objects.nonNull;
 @Component
 @RequiredArgsConstructor
 public class InitialFilter implements Filter {
-
-    private static final String ARCHURA_DOMAIN = "archura.domain";
-    private static final String DEFAULT_DOMAIN = "default";
-    private static final String ARCHURA_TENANT = "archura.tenant";
-    private static final String DEFAULT_TENANT = "default";
-    private static final String ARCHURA_DOMAIN_NOT_FOUND_URL = "archura.domain.not-found.url";
-    private static final String HTTP_METHOD_GET = "GET";
-    private static final String ARCHURA_REQUEST_HEADERS = "archura.request.headers";
-    private static final String ARCHURA_NOT_FOUND_URI = "/not-found";
-    private static final int ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT = 10000;
-    public static final String ARCHURA_REQUEST_HANDLED = "archura.request.handled";
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT))
@@ -69,57 +60,165 @@ public class InitialFilter implements Filter {
     private void handleHttpRequest(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
-    ) throws IOException {
+    ) {
+        // run global pre-filters, domain pre-filters, tenant pre-filters, and route pre-filters
+        boolean notHandledByPreFilters =
+                !runGlobalPreFilters(httpServletRequest, httpServletResponse)
+                        && !runDomainPreFilters(httpServletRequest, httpServletResponse)
+                        && !runTenantPreFilters(httpServletRequest, httpServletResponse)
+                        && !runRoutePreFilters(httpServletRequest, httpServletResponse);
 
-        // global pre-filters
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filters : globalConfiguration.getGlobalPreFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filters.getKey(), filters.getValue());
-            if (nonNull(httpServletRequest.getAttribute("archura.request.handled"))) {
-                log.debug("request already handled by the global filter '%s', will stop processing".formatted(filters.getKey()));
-                return;
+        if (notHandledByPreFilters) {
+
+            try {
+                // handle current route
+                final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
+                final GlobalConfiguration.PredefinedResponseConfiguration predefinedResponseConfiguration = currentRoute.getPredefinedResponseConfiguration();
+                if (nonNull(predefinedResponseConfiguration)) {
+                    // handle predefined response
+                    handlePredefinedResponse(httpServletResponse, predefinedResponseConfiguration);
+                } else {
+                    // handle downstream request
+                    // send downstream request and get response
+                    final HttpRequest httpRequest = buildHttpRequest(httpServletRequest);
+                    final HttpResponse<InputStream> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+                    populateHttpServletResponse(httpServletResponse, httpResponse);
+
+                    // run global post-filters, domain post-filters, tenant post-filters, and route post-filters
+//                boolean handledByPostFilters =
+//                        !runGlobalPostFilters(httpServletRequest, httpServletResponse)
+//                                && !runDomainPostFilters(httpServletRequest, httpServletResponse)
+//                                && !runTenantPostFilters(httpServletRequest, httpServletResponse)
+//                                && !runRoutePostFilters(httpServletRequest, httpServletResponse);
+
+                    boolean handledByPostFilters = false;
+                    if (!handledByPostFilters) {
+                        // read response from downstream server and write to client
+                        writeToHttpServletResponse(httpServletResponse, httpResponse);
+                    }
+                }
+
+            } catch (Exception e) {
+                log.error("Error occurred while sending downstream request", e);
+                httpServletResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+                try {
+                    httpServletResponse.getOutputStream().write(e.getMessage().getBytes());
+                } catch (IOException ex) {
+                    log.error("Error occurred while writing error message to response", ex);
+                }
             }
         }
+    }
 
-        // domain pre-filters
+    private boolean runGlobalPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+        // run global pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : globalConfiguration.getGlobalPreFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the global filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean runDomainPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+        // get current domain configuration
         if (isNull(httpServletRequest.getAttribute(ARCHURA_DOMAIN))) {
             httpServletRequest.setAttribute(ARCHURA_DOMAIN, DEFAULT_DOMAIN);
         }
         final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().get(domain);
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filters : domainConfiguration.getDomainPreFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filters.getKey(), filters.getValue());
-            if (nonNull(httpServletRequest.getAttribute("archura.request.handled"))) {
-                log.debug("request already handled by the domain filter '%s', will stop processing".formatted(filters.getKey()));
-                return;
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
+        // run domain pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : domainConfiguration.getDomainPreFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the domain filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
             }
         }
+        return false;
+    }
 
-        // tenant pre-filters
+    private boolean runTenantPreFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse
+    ) {
+        // get current domain configuration
+        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
+        // get current tenant configuration
         if (isNull(httpServletRequest.getAttribute(ARCHURA_TENANT))) {
             httpServletRequest.setAttribute(ARCHURA_TENANT, DEFAULT_TENANT);
         }
         final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().get(tenant);
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filters : tenantConfiguration.getTenantPreFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filters.getKey(), filters.getValue());
-            if (nonNull(httpServletRequest.getAttribute("archura.request.handled"))) {
-                log.debug("request already handled by the tenant filter '%s', will stop processing".formatted(filters.getKey()));
-                return;
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
+        // run tenant pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : tenantConfiguration.getTenantPreFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the tenant filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
             }
         }
+        return false;
+    }
 
-        // route pre-filters
+    private boolean runRoutePreFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse
+    ) {
+        // get domain and tenant configurations
+        final String domain = String.valueOf(httpServletRequest.getAttribute(ARCHURA_DOMAIN));
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = globalConfiguration.getDomains().getOrDefault(domain, new GlobalConfiguration.DomainConfiguration());
+        final String tenant = String.valueOf(httpServletRequest.getAttribute(ARCHURA_TENANT));
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration = domainConfiguration.getTenants().getOrDefault(tenant, new GlobalConfiguration.TenantConfiguration());
+        // find current route configuration
         final GlobalConfiguration.RouteConfiguration currentRoute = findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
-        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filters : currentRoute.getRoutePreFilters().entrySet()) {
-            runFilter(httpServletRequest, httpServletResponse, filters.getKey(), filters.getValue());
-            if (nonNull(httpServletRequest.getAttribute(ARCHURA_REQUEST_HANDLED))) {
-                log.debug("request already handled by the route filter '%s', will stop processing".formatted(filters.getKey()));
-                return;
+        httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
+        // run route pre-filters
+        for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : currentRoute.getRoutePreFilters().entrySet()) {
+            runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
+            if (httpServletResponse.isCommitted()) {
+                log.debug("request already handled by the route filter '%s', will stop processing".formatted(filter.getKey()));
+                return true;
             }
         }
+        return false;
+    }
 
-        // send downstream request
-        // Routing
+    private static void handlePredefinedResponse(
+            final HttpServletResponse httpServletResponse,
+            final GlobalConfiguration.PredefinedResponseConfiguration predefinedResponseConfiguration
+    ) throws IOException {
+        final int predefinedStatus = predefinedResponseConfiguration.getStatus();
+        final String predefinedBody = predefinedResponseConfiguration.getBody();
+        httpServletResponse.setStatus(predefinedStatus);
+        httpServletResponse.getOutputStream().write(predefinedBody.getBytes());
+        httpServletResponse.setContentLength(predefinedBody.length());
+    }
+
+
+    private static void writeToHttpServletResponse(
+            final HttpServletResponse httpServletResponse,
+            final HttpResponse<InputStream> httpResponse
+    ) throws IOException {
+        int responseTotalLength = 0;
+        try (InputStream responseInputStream = httpResponse.body()) {
+            byte[] buf = new byte[8192];
+            int length;
+            while ((length = responseInputStream.read(buf)) != -1) {
+                httpServletResponse.getOutputStream().write(buf, 0, length);
+                responseTotalLength += length;
+            }
+        }
+        httpServletResponse.setContentLength(responseTotalLength);
+    }
+
+    private static HttpRequest buildHttpRequest(
+            final HttpServletRequest httpServletRequest
+    ) {
+        final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
         final String currentRouteId = currentRoute.getId();
         final GlobalConfiguration.MapConfiguration currentRouteMapConfiguration = currentRoute.getMapConfiguration();
         final String downstreamRequestUrl = currentRouteMapConfiguration.getUrl();
@@ -133,50 +232,22 @@ public class InitialFilter implements Filter {
                 downstreamConnectionTimeout
         );
         log.debug("Executing route: '%s', will send downstream request: %s".formatted(currentRouteId, httpRequest));
-        try {
-            // send downstream request and get response
-            final HttpResponse<InputStream> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-            handleResponse(httpServletRequest, httpServletResponse, httpResponse);
-
-            // route post-filters
-
-            // tenant post-filters
-
-            // domain post-filters
-
-            // global post-filters
-
-
-            // read response from downstream server and write to client
-            int responseTotalLength = 0;
-            try (InputStream responseInputStream = httpResponse.body()) {
-                byte[] buf = new byte[8192];
-                int length;
-                while ((length = responseInputStream.read(buf)) != -1) {
-                    httpServletResponse.getOutputStream().write(buf, 0, length);
-                    responseTotalLength += length;
-                }
-            }
-            httpServletResponse.setContentLength(responseTotalLength);
-        } catch (Exception e) {
-            // TODO: handle exception
-        }
-
-
+        return httpRequest;
     }
 
-    private static void handleResponse(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, HttpResponse<InputStream> httpResponse) throws IOException {
+    private static void populateHttpServletResponse(
+            final HttpServletResponse httpServletResponse,
+            final HttpResponse<InputStream> httpResponse
+    ) {
         // get response status and content type
         final int responseStatus = httpResponse.statusCode();
         final String responseContentType = httpResponse.headers().firstValue("content-type")
-                .orElse(nonNull(httpServletRequest.getContentType()) ? httpServletRequest.getContentType() : "text/plain");
+                .orElse("text/plain");
 
         // set content type and character encoding
         final String[] contentTypeAndCharacterEncoding = responseContentType.split("charset=");
         if (contentTypeAndCharacterEncoding.length > 1) {
             httpServletResponse.setCharacterEncoding(contentTypeAndCharacterEncoding[1]);
-        } else if (nonNull(httpServletRequest.getCharacterEncoding())) {
-            httpServletResponse.setCharacterEncoding(httpServletRequest.getCharacterEncoding());
         } else {
             httpServletResponse.setCharacterEncoding("utf-8");
         }
@@ -264,7 +335,6 @@ public class InitialFilter implements Filter {
         String url = mapConfiguration.getUrl();
         final Map<String, String> headers = mapConfiguration.getHeaders();
 
-        // templateVariables: { 'match.url.tenantId' : '12345', 'extract.header.token' : 'qwerty' }
         for (String variable : templateVariables.keySet()) {
             final String value = templateVariables.get(variable);
             final String variablePattern = "\\$\\{" + variable + "\\}";
@@ -420,8 +490,8 @@ public class InitialFilter implements Filter {
         templateVariables.put("request.path", httpServletRequest.getRequestURI());
         templateVariables.put("request.method", httpServletRequest.getMethod());
         templateVariables.put("request.query", httpServletRequest.getQueryString());
-        for (String header : requestHeaders.keySet()) {
-            templateVariables.put("request.header." + header, requestHeaders.get(header));
+        for (Map.Entry<String, String> entry : requestHeaders.entrySet()) {
+            templateVariables.put("request.header." + entry.getKey(), entry.getValue());
         }
     }
 
@@ -430,27 +500,20 @@ public class InitialFilter implements Filter {
             final GlobalConfiguration.DomainConfiguration domainConfiguration
     ) {
         final GlobalConfiguration.RouteConfiguration notFoundRoute = new GlobalConfiguration.RouteConfiguration();
-        final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
-        final String method = httpServletRequest.getMethod();
-        final String notFoundUrl = getNotFoundUrl(httpServletRequest, domainConfiguration);
-        final GlobalConfiguration.MapConfiguration notFoundMap = createNotFoundMap(requestHeaders, method, notFoundUrl);
-        notFoundRoute.setMapConfiguration(notFoundMap);
-        return notFoundRoute;
-    }
-
-    private static String getNotFoundUrl(
-            final HttpServletRequest httpServletRequest,
-            final GlobalConfiguration.DomainConfiguration domainConfiguration
-    ) {
-        if (nonNull(domainConfiguration.getParameters().get(ARCHURA_DOMAIN_NOT_FOUND_URL))) {
-            return domainConfiguration.getParameters().get(ARCHURA_DOMAIN_NOT_FOUND_URL);
+        final String notFoundUrl = domainConfiguration.getParameters().get(ARCHURA_DOMAIN_NOT_FOUND_URL);
+        if (isNull(notFoundUrl)) {
+            notFoundRoute.setPredefinedResponseConfiguration(
+                    new GlobalConfiguration.PredefinedResponseConfiguration(
+                            HttpStatus.NOT_FOUND.value(),
+                            "Request URL not found"
+                    ));
         } else {
-            final StringBuffer requestURL = httpServletRequest.getRequestURL();
-            final String requestURI = httpServletRequest.getRequestURI();
-            final int urlEnd = requestURL.length() - requestURI.length();
-            final String url = requestURL.substring(0, urlEnd);
-            return url + ARCHURA_NOT_FOUND_URI;
+            final String method = httpServletRequest.getMethod();
+            final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
+            final GlobalConfiguration.MapConfiguration notFoundMap = createNotFoundMap(requestHeaders, method, notFoundUrl);
+            notFoundRoute.setMapConfiguration(notFoundMap);
         }
+        return notFoundRoute;
     }
 
     private GlobalConfiguration.MapConfiguration createNotFoundMap(
@@ -460,7 +523,7 @@ public class InitialFilter implements Filter {
     ) {
         final GlobalConfiguration.MapConfiguration notFoundMap = new GlobalConfiguration.MapConfiguration();
         notFoundMap.setUrl(notFoundUrl);
-        notFoundMap.setMethodMap(Map.of(method, HTTP_METHOD_GET));
+        notFoundMap.setMethodMap(Map.of(method, DEFAULT_HTTP_METHOD));
         notFoundMap.setHeaders(requestHeaders);
         return notFoundMap;
     }
@@ -471,7 +534,9 @@ public class InitialFilter implements Filter {
             final Map<String, String> headers = new HashMap<>();
             for (String headerName : Collections.list(httpServletRequest.getHeaderNames())) {
                 String headerValue = httpServletRequest.getHeader(headerName);
-                headers.put(headerName, headerValue);
+                if (!RESTRICTED_HEADER_NAMES.contains(headerName.toLowerCase())) {
+                    headers.put(headerName, headerValue);
+                }
             }
             httpServletRequest.setAttribute("archura.request.headers", headers);
         }
@@ -482,10 +547,10 @@ public class InitialFilter implements Filter {
     private void runFilter(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse,
-            final String name,
+            final String filterName,
             final GlobalConfiguration.FilterConfiguration configuration
     ) {
-        final ArchuraFilter filter = filterFactory.create(name);
+        final ArchuraFilter filter = filterFactory.create(filterName);
         filter.doFilter(configuration, httpServletRequest, httpServletResponse);
     }
 

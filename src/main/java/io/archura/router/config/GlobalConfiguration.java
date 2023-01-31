@@ -110,6 +110,7 @@ public class GlobalConfiguration {
         private MatchConfiguration matchConfiguration;
         private ExtractConfiguration extractConfiguration;
         private MapConfiguration mapConfiguration;
+        private PredefinedResponseConfiguration predefinedResponseConfiguration;
     }
 
     @Data
@@ -246,6 +247,23 @@ public class GlobalConfiguration {
          * i.e. { "X-A-New-Header" : "${match.header.GroupOne}" , "X-A-Generic-Header" : "${extract.header.GroupTwo}"}
          */
         private Map<String, String> headers = new HashMap<>();
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PredefinedResponseConfiguration {
+
+        /**
+         * HTTP Status to be returned.
+         * i.e. 200
+         */
+        private int status;
+
+        /**
+         * Body to be returned.
+         */
+        private String body;
     }
 
 }

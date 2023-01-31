@@ -10,7 +10,7 @@ public interface ArchuraFilter {
     void doFilter(
             GlobalConfiguration.FilterConfiguration configuration,
             HttpServletRequest httpServletRequest,
-            HttpServletResponse response
+            HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException;
 
 }

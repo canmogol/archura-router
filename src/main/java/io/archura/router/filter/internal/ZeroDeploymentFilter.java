@@ -17,7 +17,7 @@ public class ZeroDeploymentFilter implements ArchuraFilter {
     public void doFilter(
             final GlobalConfiguration.FilterConfiguration configuration,
             final HttpServletRequest httpServletRequest,
-            final HttpServletResponse response
+            final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
         log.debug("ZeroDeploymentFilter");
     }

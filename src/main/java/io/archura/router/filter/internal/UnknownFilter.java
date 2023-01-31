@@ -19,7 +19,7 @@ public class UnknownFilter implements ArchuraFilter {
     public void doFilter(
             final GlobalConfiguration.FilterConfiguration configuration,
             final HttpServletRequest httpServletRequest,
-            final HttpServletResponse response
+            final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
         log.error("Unknown filter: {}", name);
     }
