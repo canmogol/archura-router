@@ -110,7 +110,9 @@ public class GlobalConfiguration {
     @NoArgsConstructor
     public static class RouteConfiguration {
         private String name;
+        @Builder.Default
         private Map<String, FilterConfiguration> preFilters = new HashMap<>();
+        @Builder.Default
         private Map<String, FilterConfiguration> postFilters = new HashMap<>();
         private MatchConfiguration matchConfiguration;
         private ExtractConfiguration extractConfiguration;
