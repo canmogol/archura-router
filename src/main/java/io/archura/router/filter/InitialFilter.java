@@ -409,7 +409,11 @@ public class InitialFilter implements Filter {
         extractQueryVariables(httpServletRequest, templateVariables, queryConfiguration);
     }
 
-    private void extractPathVariables(HttpServletRequest httpServletRequest, Map<String, String> templateVariables, GlobalConfiguration.RoutePathConfiguration routePathConfiguration) {
+    private void extractPathVariables(
+        final HttpServletRequest httpServletRequest, 
+        final Map<String, String> templateVariables, 
+        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
+    ) {
         if (nonNull(routePathConfiguration)) {
             final String input = httpServletRequest.getRequestURI();
             final String regex = routePathConfiguration.getRegex();
@@ -424,7 +428,11 @@ public class InitialFilter implements Filter {
         }
     }
 
-    private void extractHeaderVariables(Map<String, String> requestHeaders, Map<String, String> templateVariables, GlobalConfiguration.RouteHeaderConfiguration headerConfiguration) {
+    private void extractHeaderVariables(
+        final Map<String, String> requestHeaders,
+        final Map<String, String> templateVariables, 
+        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
+    ) {
         if (nonNull(headerConfiguration) && requestHeaders.containsKey(headerConfiguration.getName())) {
             final String input = requestHeaders.get(headerConfiguration.getName());
             final String regex = headerConfiguration.getRegex();
@@ -439,7 +447,11 @@ public class InitialFilter implements Filter {
         }
     }
 
-    private void extractQueryVariables(HttpServletRequest httpServletRequest, Map<String, String> templateVariables, GlobalConfiguration.RouteQueryConfiguration queryConfiguration) {
+    private void extractQueryVariables(
+        final HttpServletRequest httpServletRequest, 
+        final Map<String, String> templateVariables, 
+        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
+    ) {
         if (nonNull(queryConfiguration) && httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
             final String input = httpServletRequest.getParameter(queryConfiguration.getName());
             final String regex = queryConfiguration.getRegex();
@@ -482,7 +494,12 @@ public class InitialFilter implements Filter {
         }
     }
 
-    private boolean isPathMatch(String input, Map<String, String> templateVariables, boolean match, GlobalConfiguration.RoutePathConfiguration routePathConfiguration) {
+    private boolean isPathMatch(
+        final String input, 
+        final Map<String, String> templateVariables,
+        boolean match, 
+        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
+    ) {
         if (nonNull(routePathConfiguration)) {
             final String regex = routePathConfiguration.getRegex();
             final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
@@ -503,7 +520,12 @@ public class InitialFilter implements Filter {
         return match;
     }
 
-    private boolean isHeaderMatch(Map<String, String> requestHeaders, Map<String, String> templateVariables, boolean match, GlobalConfiguration.RouteHeaderConfiguration headerConfiguration) {
+    private boolean isHeaderMatch(
+        final Map<String, String> requestHeaders,
+        final Map<String, String> templateVariables,
+        boolean match,
+        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
+    ) {
         if (nonNull(headerConfiguration)) {
             if (requestHeaders.containsKey(headerConfiguration.getName())) {
                 final String input = requestHeaders.get(headerConfiguration.getName());
@@ -529,7 +551,13 @@ public class InitialFilter implements Filter {
         return match;
     }
 
-    private boolean isQueryMatch(HttpServletRequest httpServletRequest, Map<String, String> templateVariables, boolean match, GlobalConfiguration.RoutePathConfiguration routePathConfiguration, GlobalConfiguration.RouteQueryConfiguration queryConfiguration) {
+    private boolean isQueryMatch(
+        final HttpServletRequest httpServletRequest, 
+        final Map<String, String> templateVariables, 
+        boolean match, 
+        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration,
+        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
+    ) {
         if (nonNull(queryConfiguration)) {
             if (httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
                 final String input = httpServletRequest.getParameter(queryConfiguration.getName());
