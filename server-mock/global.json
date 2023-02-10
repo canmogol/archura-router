@@ -1,6 +1,6 @@
 {
-  "configurationServerURL": "https://localhost:9010",
-  "notificationServerURL": "https://localhost:9000",
+  "configurationServerURL": "http://localhost:9010",
+  "notificationServerURL": "ws://localhost:9000",
   "preFilters": {
     "domain": {
       "parameters": {}
@@ -26,7 +26,7 @@
                 "matchConfiguration": {},
                 "extractConfiguration": {},
                 "mapConfiguration": {
-                  "url": "http://192.168.68.105:9090/test.txt",
+                  "url": "http://localhost:9010",
                   "methodMap": {
                     "GET": "GET"
                   },
