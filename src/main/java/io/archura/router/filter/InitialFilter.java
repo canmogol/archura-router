@@ -62,13 +62,13 @@ public class InitialFilter implements Filter {
             final HttpServletResponse httpServletResponse
     ) {
         // run global pre-filters, domain pre-filters, tenant pre-filters, and route pre-filters
-        boolean notHandledByPreFilters =
-                !runGlobalPreFilters(httpServletRequest, httpServletResponse)
-                        && !runDomainPreFilters(httpServletRequest, httpServletResponse)
-                        && !runTenantPreFilters(httpServletRequest, httpServletResponse)
-                        && !runRoutePreFilters(httpServletRequest, httpServletResponse);
+        runGlobalPreFilters(httpServletRequest, httpServletResponse);
+        runDomainPreFilters(httpServletRequest, httpServletResponse);
+        runTenantPreFilters(httpServletRequest, httpServletResponse);
+        runRoutePreFilters(httpServletRequest, httpServletResponse);
 
-        if (notHandledByPreFilters) {
+        // handle request if not handled by the pre-filters
+        if (!httpServletResponse.isCommitted()) {
             try {
                 // handle current route
                 final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
@@ -84,13 +84,12 @@ public class InitialFilter implements Filter {
                     populateHttpServletResponse(httpServletResponse, httpResponse);
 
                     // run global post-filters, domain post-filters, tenant post-filters, and route post-filters
-                    boolean handledByPostFilters =
-                            !runGlobalPostFilters(httpServletRequest, httpServletResponse)
-                                    && !runDomainPostFilters(httpServletRequest, httpServletResponse)
-                                    && !runTenantPostFilters(httpServletRequest, httpServletResponse)
-                                    && !runRoutePostFilters(httpServletRequest, httpServletResponse);
+                    runGlobalPostFilters(httpServletRequest, httpServletResponse);
+                    runDomainPostFilters(httpServletRequest, httpServletResponse);
+                    runTenantPostFilters(httpServletRequest, httpServletResponse);
+                    runRoutePostFilters(httpServletRequest, httpServletResponse);
 
-                    if (!handledByPostFilters) {
+                    if (!httpServletResponse.isCommitted()) {
                         // read response from downstream server and write to client
                         writeToHttpServletResponse(httpServletResponse, httpResponse);
                     } else {
@@ -106,66 +105,80 @@ public class InitialFilter implements Filter {
                     log.error("Error occurred while writing error message to response", ex);
                 }
             }
+        } else {
+            log.debug("request already handled by the pre-filters");
         }
+
     }
 
-    private boolean runGlobalPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+    private void runGlobalPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // run global pre-filters
-        return runPreFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPreFilters());
+        if (!httpServletResponse.isCommitted()) {
+            runPreFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPreFilters());
+        }
     }
 
-    private boolean runDomainPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
-        // get current domain configuration
-        if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN))) {
-            final GlobalConfiguration.DomainConfiguration defaultDomain = new GlobalConfiguration.DomainConfiguration();
-            httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, defaultDomain);
-        }
-        final GlobalConfiguration.DomainConfiguration domainConfiguration =
-                (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+    private void runDomainPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // run domain pre-filters
-        return runPreFilters(httpServletRequest, httpServletResponse, domainConfiguration.getPreFilters());
-    }
-
-    private boolean runTenantPreFilters(
-            final HttpServletRequest httpServletRequest,
-            final HttpServletResponse httpServletResponse
-    ) {
-        // get current tenant configuration
-        if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT))) {
-            final GlobalConfiguration.TenantConfiguration defaultTenant = new GlobalConfiguration.TenantConfiguration();
-            httpServletRequest.setAttribute(ARCHURA_CURRENT_TENANT, defaultTenant);
+        if (!httpServletResponse.isCommitted()) {
+            // get current domain configuration
+            if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN))) {
+                final GlobalConfiguration.DomainConfiguration defaultDomain = new GlobalConfiguration.DomainConfiguration();
+                httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, defaultDomain);
+            }
+            final GlobalConfiguration.DomainConfiguration domainConfiguration =
+                    (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+            runPreFilters(httpServletRequest, httpServletResponse, domainConfiguration.getPreFilters());
         }
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration =
-                (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
-        // run tenant pre-filters
-        return runPreFilters(httpServletRequest, httpServletResponse, tenantConfiguration.getPreFilters());
     }
 
-    private boolean runRoutePreFilters(
+    private void runTenantPreFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // get domain and tenant configurations
-        final GlobalConfiguration.DomainConfiguration domainConfiguration =
-                (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration =
-                (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
-        // find current route configuration
-        final GlobalConfiguration.RouteConfiguration currentRoute = findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
-        httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
-        // run route pre-filters
-        return runPreFilters(httpServletRequest, httpServletResponse, currentRoute.getPreFilters());
+        // run tenant pre-filters
+        if (!httpServletResponse.isCommitted()) {
+            // get current tenant configuration
+            if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT))) {
+                final GlobalConfiguration.TenantConfiguration defaultTenant = new GlobalConfiguration.TenantConfiguration();
+                httpServletRequest.setAttribute(ARCHURA_CURRENT_TENANT, defaultTenant);
+            }
+            final GlobalConfiguration.TenantConfiguration tenantConfiguration =
+                    (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
+            runPreFilters(httpServletRequest, httpServletResponse, tenantConfiguration.getPreFilters());
+        }
     }
 
-    private boolean runPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Map<String, GlobalConfiguration.FilterConfiguration> filters) {
+    private void runRoutePreFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse
+    ) {
+        // run route pre-filters
+        if (!httpServletResponse.isCommitted()) {
+            // get domain and tenant configurations
+            final GlobalConfiguration.DomainConfiguration domainConfiguration =
+                    (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+            final GlobalConfiguration.TenantConfiguration tenantConfiguration =
+                    (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
+            // find current route configuration
+            final GlobalConfiguration.RouteConfiguration currentRoute = findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
+            httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
+            runPreFilters(httpServletRequest, httpServletResponse, currentRoute.getPreFilters());
+        }
+    }
+
+    private void runPreFilters(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse,
+            final Map<String, GlobalConfiguration.FilterConfiguration> filters
+    ) {
         for (Map.Entry<String, GlobalConfiguration.FilterConfiguration> filter : filters.entrySet()) {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
                 log.debug("request already handled by the pre-filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
+                break;
             }
         }
-        return false;
     }
 
     private void handlePredefinedResponse(
@@ -258,48 +271,56 @@ public class InitialFilter implements Filter {
         httpServletResponse.setContentType(responseContentType);
     }
 
-    private boolean runGlobalPostFilters(
+    private void runGlobalPostFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
         // run global post-filters
-        return runPostFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPostFilters());
+        if (!httpServletResponse.isCommitted()) {
+            runPostFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPostFilters());
+        }
     }
 
-    private boolean runDomainPostFilters(
+    private void runDomainPostFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // get current domain configuration
-        final GlobalConfiguration.DomainConfiguration domainConfiguration =
-                (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
         // run domain post-filters
-        return runPostFilters(httpServletRequest, httpServletResponse, domainConfiguration.getPostFilters());
+        if (!httpServletResponse.isCommitted()) {
+            // get current domain configuration
+            final GlobalConfiguration.DomainConfiguration domainConfiguration =
+                    (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+            runPostFilters(httpServletRequest, httpServletResponse, domainConfiguration.getPostFilters());
+        }
     }
 
-    private boolean runTenantPostFilters(
+    private void runTenantPostFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // get current tenant configuration
-        final GlobalConfiguration.TenantConfiguration tenantConfiguration =
-                (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
         // run tenant post-filters
-        return runPostFilters(httpServletRequest, httpServletResponse, tenantConfiguration.getPostFilters());
+        if (!httpServletResponse.isCommitted()) {
+            // get current tenant configuration
+            final GlobalConfiguration.TenantConfiguration tenantConfiguration =
+                    (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
+            runPostFilters(httpServletRequest, httpServletResponse, tenantConfiguration.getPostFilters());
+        }
     }
 
-    private boolean runRoutePostFilters(
+    private void runRoutePostFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // get current route configuration
-        final GlobalConfiguration.RouteConfiguration currentRoute =
-                (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
         // run tenant post-filters
-        return runPostFilters(httpServletRequest, httpServletResponse, currentRoute.getPostFilters());
+        if (!httpServletResponse.isCommitted()) {
+            // get current route configuration
+            final GlobalConfiguration.RouteConfiguration currentRoute =
+                    (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
+            runPostFilters(httpServletRequest, httpServletResponse, currentRoute.getPostFilters());
+        }
     }
 
-    private boolean runPostFilters(
+    private void runPostFilters(
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse,
             final Map<String, GlobalConfiguration.FilterConfiguration> filters
@@ -308,10 +329,9 @@ public class InitialFilter implements Filter {
             runFilter(httpServletRequest, httpServletResponse, filter.getKey(), filter.getValue());
             if (httpServletResponse.isCommitted()) {
                 log.debug("request already handled by the post-filter '%s', will stop processing".formatted(filter.getKey()));
-                return true;
+                break;
             }
         }
-        return false;
     }
 
     private GlobalConfiguration.RouteConfiguration findCurrentRoute(
@@ -410,9 +430,9 @@ public class InitialFilter implements Filter {
     }
 
     private void extractPathVariables(
-        final HttpServletRequest httpServletRequest, 
-        final Map<String, String> templateVariables, 
-        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
+            final HttpServletRequest httpServletRequest,
+            final Map<String, String> templateVariables,
+            final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
     ) {
         if (nonNull(routePathConfiguration)) {
             final String input = httpServletRequest.getRequestURI();
@@ -429,9 +449,9 @@ public class InitialFilter implements Filter {
     }
 
     private void extractHeaderVariables(
-        final Map<String, String> requestHeaders,
-        final Map<String, String> templateVariables, 
-        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
+            final Map<String, String> requestHeaders,
+            final Map<String, String> templateVariables,
+            final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
     ) {
         if (nonNull(headerConfiguration) && requestHeaders.containsKey(headerConfiguration.getName())) {
             final String input = requestHeaders.get(headerConfiguration.getName());
@@ -448,9 +468,9 @@ public class InitialFilter implements Filter {
     }
 
     private void extractQueryVariables(
-        final HttpServletRequest httpServletRequest, 
-        final Map<String, String> templateVariables, 
-        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
+            final HttpServletRequest httpServletRequest,
+            final Map<String, String> templateVariables,
+            final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
     ) {
         if (nonNull(queryConfiguration) && httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
             final String input = httpServletRequest.getParameter(queryConfiguration.getName());
@@ -495,10 +515,10 @@ public class InitialFilter implements Filter {
     }
 
     private boolean isPathMatch(
-        final String input, 
-        final Map<String, String> templateVariables,
-        boolean match, 
-        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
+            final String input,
+            final Map<String, String> templateVariables,
+            boolean match,
+            final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
     ) {
         if (nonNull(routePathConfiguration)) {
             final String regex = routePathConfiguration.getRegex();
@@ -521,10 +541,10 @@ public class InitialFilter implements Filter {
     }
 
     private boolean isHeaderMatch(
-        final Map<String, String> requestHeaders,
-        final Map<String, String> templateVariables,
-        boolean match,
-        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
+            final Map<String, String> requestHeaders,
+            final Map<String, String> templateVariables,
+            boolean match,
+            final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
     ) {
         if (nonNull(headerConfiguration)) {
             if (requestHeaders.containsKey(headerConfiguration.getName())) {
@@ -552,11 +572,11 @@ public class InitialFilter implements Filter {
     }
 
     private boolean isQueryMatch(
-        final HttpServletRequest httpServletRequest, 
-        final Map<String, String> templateVariables, 
-        boolean match, 
-        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration,
-        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
+            final HttpServletRequest httpServletRequest,
+            final Map<String, String> templateVariables,
+            boolean match,
+            final GlobalConfiguration.RoutePathConfiguration routePathConfiguration,
+            final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
     ) {
         if (nonNull(queryConfiguration)) {
             if (httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {

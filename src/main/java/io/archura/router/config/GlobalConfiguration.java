@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,8 +20,10 @@ import static java.util.Objects.nonNull;
 @Configuration
 public class GlobalConfiguration {
 
+    private static final int ONE_SECOND = 1000;
+
     @Value("${configuration.server.url:https://localhost:9010}")
-    private URI configurationServerURL;
+    private String configurationServerURL;
 
     @Value("#{${configuration.server.request.headers}}")
     private Map<String, String> configurationServerRequestHeaders = new HashMap<>();
@@ -34,7 +35,7 @@ public class GlobalConfiguration {
     private long configurationServerRetryInterval;
 
     @Value("${notification.server.url:https://localhost:9000}")
-    private URI notificationServerURL;
+    private String notificationServerURL;
 
     @Value("#{${notification.server.request.headers}}")
     private Map<String, String> notificationServerRequestHeaders = new HashMap<>();
@@ -54,15 +55,30 @@ public class GlobalConfiguration {
                 && nonNull(from.getConfigurationServerURL())
                 && nonNull(from.getNotificationServerURL())
         ) {
-            this.configurationServerURL = from.getConfigurationServerURL();
-            this.notificationServerURL = from.getNotificationServerURL();
-            this.configurationServerRequestHeaders.putAll(from.getConfigurationServerRequestHeaders());
+            if (nonNull(from.getConfigurationServerURL())
+                    && (from.getConfigurationServerURL().startsWith("https://")
+                    || from.getConfigurationServerURL().startsWith("http://"))) {
+                this.configurationServerURL = from.getConfigurationServerURL();
+            }
+            if (nonNull(from.getNotificationServerURL())
+                    && (from.getNotificationServerURL().startsWith("wss://")
+                    || from.getNotificationServerURL().startsWith("ws://"))) {
+                this.notificationServerURL = from.getNotificationServerURL();
+            }
+            if (from.getConfigurationServerConnectionTimeout() > ONE_SECOND) {
+                this.configurationServerConnectionTimeout = from.getConfigurationServerConnectionTimeout();
+            }
+            if (from.getConfigurationServerRetryInterval() > ONE_SECOND) {
+                this.configurationServerRetryInterval = from.getConfigurationServerRetryInterval();
+            }
+            if (from.getNotificationServerConnectionTimeout() > ONE_SECOND) {
+                this.notificationServerConnectionTimeout = from.getNotificationServerConnectionTimeout();
+            }
+            if (from.getNotificationServerRetryInterval() > ONE_SECOND) {
+                this.notificationServerRetryInterval = from.getNotificationServerRetryInterval();
+            }
             this.configurationServerRequestHeaders = from.getConfigurationServerRequestHeaders();
-            this.configurationServerConnectionTimeout = from.getConfigurationServerConnectionTimeout();
-            this.configurationServerRetryInterval = from.getConfigurationServerRetryInterval();
             this.notificationServerRequestHeaders = from.getNotificationServerRequestHeaders();
-            this.notificationServerConnectionTimeout = from.getNotificationServerConnectionTimeout();
-            this.notificationServerRetryInterval = from.getNotificationServerRetryInterval();
             this.domains = from.getDomains();
             this.preFilters = from.getPreFilters();
             this.postFilters = from.getPostFilters();

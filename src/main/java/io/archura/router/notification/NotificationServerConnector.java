@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
@@ -70,9 +71,10 @@ public class NotificationServerConnector {
     }
 
     private WebSocket connectToWebsocket(final WebSocket.Builder webSocketBuilder) {
+        final URI notificationServerURL = URI.create(globalConfiguration.getNotificationServerURL());
         return webSocketBuilder
                 .connectTimeout(Duration.ofMillis(globalConfiguration.getNotificationServerConnectionTimeout()))
-                .buildAsync(globalConfiguration.getNotificationServerURL(), notificationServerListener)
+                .buildAsync(notificationServerURL, notificationServerListener)
                 .join();
     }
 
