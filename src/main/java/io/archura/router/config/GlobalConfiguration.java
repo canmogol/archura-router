@@ -1,12 +1,10 @@
 package io.archura.router.config;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,28 +20,34 @@ public class GlobalConfiguration {
 
     private static final int ONE_SECOND = 1000;
 
-    @Value("${configuration.server.url:https://localhost:9010}")
+    @Value("${archura.configuration.file.path}")
+    private Path filePath;
+
+    @Value("${archura.dynamic.configuration.enabled:false}")
+    private boolean dynamicConfigurationEnabled;
+
+    @Value("${archura.configuration.server.url:https://localhost:9010}")
     private String configurationServerURL;
 
-    @Value("#{${configuration.server.request.headers}}")
+    @Value("#{${archura.configuration.server.request.headers}}")
     private Map<String, String> configurationServerRequestHeaders = new HashMap<>();
 
-    @Value("${configuration.server.connection.timeout:10000}")
+    @Value("${archura.configuration.server.connection.timeout:10000}")
     private long configurationServerConnectionTimeout;
 
-    @Value("${configuration.server.retry.interval:10000}")
+    @Value("${archura.configuration.server.retry.interval:10000}")
     private long configurationServerRetryInterval;
 
-    @Value("${notification.server.url:https://localhost:9000}")
+    @Value("${archura.notification.server.url:https://localhost:9000}")
     private String notificationServerURL;
 
-    @Value("#{${notification.server.request.headers}}")
+    @Value("#{${archura.notification.server.request.headers}}")
     private Map<String, String> notificationServerRequestHeaders = new HashMap<>();
 
-    @Value("${notification.server.connection.timeout:10000}")
+    @Value("${archura.notification.server.connection.timeout:10000}")
     private long notificationServerConnectionTimeout;
 
-    @Value("${notification.server.retry.interval:10000}")
+    @Value("${archura.notification.server.retry.interval:10000}")
     private long notificationServerRetryInterval;
 
     private Map<String, FilterConfiguration> preFilters = new HashMap<>();
@@ -77,16 +81,13 @@ public class GlobalConfiguration {
             if (from.getNotificationServerRetryInterval() > ONE_SECOND) {
                 this.notificationServerRetryInterval = from.getNotificationServerRetryInterval();
             }
+            this.dynamicConfigurationEnabled = from.isDynamicConfigurationEnabled();
             this.configurationServerRequestHeaders = from.getConfigurationServerRequestHeaders();
             this.notificationServerRequestHeaders = from.getNotificationServerRequestHeaders();
             this.domains = from.getDomains();
             this.preFilters = from.getPreFilters();
             this.postFilters = from.getPostFilters();
         }
-    }
-
-    public void deleteDomainConfigurations() {
-        this.domains.clear();
     }
 
     @Data
@@ -97,11 +98,20 @@ public class GlobalConfiguration {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class TenantFilterConfiguration extends FilterConfiguration {
+        private ExtractConfiguration extractConfiguration;
+    }
+
+    @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class DomainConfiguration {
         private String name;
         private String customerAccount;
+        private String defaultTenantId;
         private Map<String, String> parameters = new HashMap<>();
         private Map<String, FilterConfiguration> preFilters = new HashMap<>();
         private Map<String, FilterConfiguration> postFilters = new HashMap<>();
@@ -140,24 +150,25 @@ public class GlobalConfiguration {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class MatchConfiguration {
-        private RoutePathConfiguration routePathConfiguration;
-        private RouteHeaderConfiguration routeHeaderConfiguration;
-        private RouteQueryConfiguration routeQueryConfiguration;
+        private PathConfiguration pathConfiguration;
+        private HeaderConfiguration headerConfiguration;
+        private QueryConfiguration queryConfiguration;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ExtractConfiguration {
-        private RoutePathConfiguration routePathConfiguration;
-        private RouteHeaderConfiguration routeHeaderConfiguration;
-        private RouteQueryConfiguration routeQueryConfiguration;
+        private PathConfiguration pathConfiguration;
+        private HeaderConfiguration headerConfiguration;
+        private QueryConfiguration queryConfiguration;
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = true)
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class RoutePathConfiguration {
+    public static class PathConfiguration extends PatternHolder {
 
         /**
          * Path to be matched.
@@ -171,11 +182,6 @@ public class GlobalConfiguration {
         private String regex;
 
         /**
-         * Compiled pattern.
-         */
-        private Pattern pattern;
-
-        /**
          * Capture groups to be extracted from the path.
          * i.e. ["tenantId"]
          */
@@ -183,9 +189,10 @@ public class GlobalConfiguration {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = true)
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class RouteHeaderConfiguration {
+    public static class HeaderConfiguration extends PatternHolder {
 
         /**
          * Name of the header to be matched.
@@ -205,11 +212,6 @@ public class GlobalConfiguration {
         private String regex;
 
         /**
-         * Compiled pattern.
-         */
-        private Pattern pattern;
-
-        /**
          * Capture groups to be extracted from the path.
          * i.e. ["tenantId"]
          */
@@ -217,9 +219,10 @@ public class GlobalConfiguration {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = true)
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class RouteQueryConfiguration {
+    public static class QueryConfiguration extends PatternHolder {
         /**
          * Name of the query parameter to be matched.
          * i.e. 'tenantId'
@@ -238,15 +241,23 @@ public class GlobalConfiguration {
         private String regex;
 
         /**
-         * Compiled pattern.
-         */
-        private Pattern pattern;
-
-        /**
          * Capture groups to be extracted from the path.
          * i.e. ["tenantId"]
          */
         private List<String> captureGroups;
+    }
+
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PatternHolder {
+
+        /**
+         * Compiled pattern.
+         */
+        private Pattern pattern;
+
     }
 
     @Data
