@@ -1,7 +1,7 @@
 package io.archura.router.configuration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.archura.router.config.GlobalConfiguration;
+import io.archura.router.mapping.Mapper;
 import io.archura.router.notification.event.NotificationServerConnectedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +14,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -24,18 +26,27 @@ import java.util.concurrent.Executors;
 public class GlobalConfigurationListener implements ApplicationListener<NotificationServerConnectedEvent> {
 
     private final GlobalConfiguration globalConfiguration;
+    private final Mapper mapper;
     private volatile boolean globalConfigurationFetched = false;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public void loadFileConfiguration(final Path filePath) throws IOException {
+        try {
+            final String fileContent = Files.readString(filePath);
+            final GlobalConfiguration from = mapper.readValue(fileContent, GlobalConfiguration.class);
+            globalConfiguration.copy(from);
+        } catch (IOException e) {
+            log.error("Failed to read configuration file: '{}'", filePath, e);
+            throw e;
+        }
+    }
 
     @Override
     public void onApplicationEvent(final NotificationServerConnectedEvent event) {
-        // delete domain configurations
-        globalConfiguration.deleteDomainConfigurations();
         // fetch new configuration
-        getGlobalConfiguration();
+        fetchGlobalConfiguration();
     }
 
-    private void getGlobalConfiguration() {
+    private void fetchGlobalConfiguration() {
         this.globalConfigurationFetched = false;
         final HttpRequest request = createHttpRequest();
         // loop until configuration is fetched
@@ -77,7 +88,7 @@ public class GlobalConfigurationListener implements ApplicationListener<Notifica
                 throw new IOException("Configuration server returned status code " + response.statusCode());
             }
             // parse response
-            return objectMapper.readValue(response.body(), GlobalConfiguration.class);
+            return mapper.readValue(response.body(), GlobalConfiguration.class);
         } catch (IOException | InterruptedException e) {
             final String error = "Failed to connect to configuration server, url: '%s', exception: '%s', message: '%s'"
                     .formatted(
