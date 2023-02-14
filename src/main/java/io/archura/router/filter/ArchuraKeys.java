@@ -3,7 +3,6 @@ package io.archura.router.filter;
 import java.util.List;
 
 public class ArchuraKeys {
-    public static final String DEFAULT_DOMAIN = "default";
     public static final String ARCHURA_CURRENT_DOMAIN = "archura.current.domain";
     public static final String ARCHURA_CURRENT_TENANT = "archura.current.tenant";
     public static final String ARCHURA_CURRENT_ROUTE = "archura.current.route";
