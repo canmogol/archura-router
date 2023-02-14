@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -17,17 +18,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Executors;
 
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_DOMAIN;
-import static io.archura.router.filter.ArchuraKeys.DEFAULT_DOMAIN;
-import static java.util.Objects.nonNull;
+import static java.util.Objects.isNull;
 
 @Slf4j
 @RequiredArgsConstructor
 @Component
 public class DomainFilter implements ArchuraFilter {
+    private static final String HEADER_NAME_HOST = "Host";
     private final GlobalConfiguration globalConfiguration;
     private final Mapper mapper;
 
@@ -38,28 +38,26 @@ public class DomainFilter implements ArchuraFilter {
             final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
         log.debug("DomainFilter");
-        final String host = nonNull(httpServletRequest.getHeader("Host")) ? httpServletRequest.getHeader("Host") : "localhost";
+        final String host = httpServletRequest.getHeader(HEADER_NAME_HOST);
+        log.debug("method: '{}' url: '{}', host: '{}'", httpServletRequest.getMethod(), httpServletRequest.getRequestURL(), host);
+        if (isNull(host)) {
+            throw new ArchuraFilterException(HttpStatus.BAD_REQUEST.value(), "Host header is missing");
+        }
         final Map<String, GlobalConfiguration.DomainConfiguration> domains = globalConfiguration.getDomains();
         if (!domains.containsKey(host)) {
-            final Optional<GlobalConfiguration.DomainConfiguration> optionalDomainConfiguration = fetchDomainConfiguration(host);
-            optionalDomainConfiguration.ifPresent(domainConfiguration -> domains.put(host, domainConfiguration));
+            final GlobalConfiguration.DomainConfiguration domainConfiguration = fetchDomainConfiguration(host);
+            if (isNull(domainConfiguration)) {
+                throw new ArchuraFilterException(HttpStatus.NOT_FOUND.value(), "Domain configuration not found for this host: '%s'".formatted(host));
+            } else {
+                domains.put(host, domainConfiguration);
+            }
         }
-        if (domains.containsKey(host)) {
-            final GlobalConfiguration.DomainConfiguration domainConfiguration = domains.get(host);
-            httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, domainConfiguration);
-        } else {
-            httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, createDefaultDomain());
-        }
+        final GlobalConfiguration.DomainConfiguration domainConfiguration = domains.get(host);
+        httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, domainConfiguration);
+        log.debug("current domain set to: '{}'", httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN));
     }
 
-    private static GlobalConfiguration.DomainConfiguration createDefaultDomain() {
-        final GlobalConfiguration.DomainConfiguration domainConfiguration = new GlobalConfiguration.DomainConfiguration();
-        domainConfiguration.setName(DEFAULT_DOMAIN);
-        domainConfiguration.setCustomerAccount(DEFAULT_DOMAIN);
-        return domainConfiguration;
-    }
-
-    private Optional<GlobalConfiguration.DomainConfiguration> fetchDomainConfiguration(final String domain) {
+    private GlobalConfiguration.DomainConfiguration fetchDomainConfiguration(final String domain) {
         final HttpClient httpClient = createHttpClient();
         final HttpRequest httpRequest = createHttpRequest(domain);
         try {
@@ -75,7 +73,7 @@ public class DomainFilter implements ArchuraFilter {
         } catch (InterruptedException | IOException e) {
             log.error("Error while fetching domain configuration", e);
         }
-        return Optional.empty();
+        return null;
     }
 
     private HttpRequest createHttpRequest(final String domain) {
