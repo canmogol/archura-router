@@ -4,18 +4,35 @@
   "dynamicConfigurationEnabled": false,
   "preFilters": {
     "domain": {
+      "__class": "io.archura.router.config.GlobalConfiguration$FilterConfiguration",
       "parameters": {}
     },
     "tenant": {
+      "__class": "io.archura.router.config.GlobalConfiguration$TenantFilterConfiguration",
       "parameters": {},
-      "extractConfiguration": {}
+      "extractConfiguration": {
+        "headerConfiguration": {
+          "name": "X-Tenant-ID",
+          "regex": "(?<tenantId>.*)",
+          "captureGroups": ["tenantId"]
+        },
+        "pathConfiguration": {
+          "regex": "\\/(?<tenantId>.*)\\/.*",
+          "captureGroups": ["tenantId"]
+        },
+        "queryConfiguration": {
+          "name": "tenant_id",
+          "regex": "(?<tenantId>.*)",
+          "captureGroups": ["tenantId"]
+        }
+      }
     }
   },
   "domains": {
     "localhost:8080": {
       "name": "localhost:8080",
       "customerAccount": "localhost",
-      "defaultTenant": "default",
+      "defaultTenantId": "default",
       "preFilters": {},
       "postFilters": {},
       "tenants": {
@@ -29,10 +46,15 @@
                 "name": "route-01",
                 "preFilters": {},
                 "postFilters": {},
-                "matchConfiguration": {},
+                "matchConfiguration": {
+                  "pathConfiguration": {
+                    "regex": ".*",
+                    "captureGroups": []
+                  }
+                },
                 "extractConfiguration": {},
                 "mapConfiguration": {
-                  "url": "http://localhost:9010",
+                  "url": "http://localhost:9020/",
                   "methodMap": {
                     "GET": "GET"
                   },
