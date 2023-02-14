@@ -1,6 +1,7 @@
 package io.archura.router.filter;
 
 import io.archura.router.config.GlobalConfiguration;
+import io.archura.router.filter.exception.ArchuraFilterException;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -61,15 +62,15 @@ public class InitialFilter implements Filter {
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) {
-        // run global pre-filters, domain pre-filters, tenant pre-filters, and route pre-filters
-        runGlobalPreFilters(httpServletRequest, httpServletResponse);
-        runDomainPreFilters(httpServletRequest, httpServletResponse);
-        runTenantPreFilters(httpServletRequest, httpServletResponse);
-        runRoutePreFilters(httpServletRequest, httpServletResponse);
+        try {
+            // run global pre-filters, domain pre-filters, tenant pre-filters, and route pre-filters
+            runGlobalPreFilters(httpServletRequest, httpServletResponse);
+            runDomainPreFilters(httpServletRequest, httpServletResponse);
+            runTenantPreFilters(httpServletRequest, httpServletResponse);
+            runRoutePreFilters(httpServletRequest, httpServletResponse);
 
-        // handle request if not handled by the pre-filters
-        if (!httpServletResponse.isCommitted()) {
-            try {
+            // handle request if not handled by the pre-filters
+            if (!httpServletResponse.isCommitted()) {
                 // handle current route
                 final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
                 final GlobalConfiguration.PredefinedResponseConfiguration predefinedResponseConfiguration = currentRoute.getPredefinedResponseConfiguration();
@@ -96,19 +97,29 @@ public class InitialFilter implements Filter {
                         log.debug("request already handled by the post-filters");
                     }
                 }
-            } catch (Exception e) {
-                log.error("Error occurred while sending downstream request", e);
-                httpServletResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-                try {
-                    httpServletResponse.getOutputStream().write(e.getMessage().getBytes());
-                } catch (IOException ex) {
-                    log.error("Error occurred while writing error message to response", ex);
-                }
-            }
-        } else {
-            log.debug("request already handled by the pre-filters");
-        }
 
+            } else {
+                log.debug("request already handled by the pre-filters");
+            }
+        } catch (ArchuraFilterException e) {
+            log.error("Error occurred while handling request", e);
+            httpServletResponse.setStatus(e.getStatusCode());
+            try {
+                final byte[] errorMessage = e.getMessage().getBytes();
+                httpServletResponse.setContentLength(errorMessage.length);
+                httpServletResponse.getOutputStream().write(errorMessage);
+            } catch (IOException ex) {
+                log.error("Error occurred while writing error message to response", ex);
+            }
+        } catch (Exception e) {
+            log.error("Error occurred while handling request", e);
+            httpServletResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            try {
+                httpServletResponse.getOutputStream().write(e.getMessage().getBytes());
+            } catch (IOException ex) {
+                log.error("Error occurred while writing error message to response", ex);
+            }
+        }
     }
 
     private void runGlobalPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
@@ -190,59 +201,6 @@ public class InitialFilter implements Filter {
         httpServletResponse.setStatus(predefinedStatus);
         httpServletResponse.getOutputStream().write(predefinedBody.getBytes());
         httpServletResponse.setContentLength(predefinedBody.length());
-    }
-
-
-    private void writeToHttpServletResponse(
-            final HttpServletResponse httpServletResponse,
-            final HttpResponse<InputStream> httpResponse
-    ) throws IOException {
-        int responseTotalLength = 0;
-        try (InputStream responseInputStream = httpResponse.body()) {
-            byte[] buf = new byte[8192];
-            int length;
-            while ((length = responseInputStream.read(buf)) != -1) {
-                httpServletResponse.getOutputStream().write(buf, 0, length);
-                responseTotalLength += length;
-            }
-        }
-        httpServletResponse.setContentLength(responseTotalLength);
-    }
-
-    private HttpRequest buildHttpRequest(
-            final HttpServletRequest httpServletRequest
-    ) {
-        final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
-        final String currentRouteId = currentRoute.getName();
-        final GlobalConfiguration.MapConfiguration currentRouteMapConfiguration = currentRoute.getMapConfiguration();
-        final String downstreamRequestUrl = currentRouteMapConfiguration.getUrl();
-        final Map<String, String> downstreamRequestHeaders = currentRouteMapConfiguration.getHeaders();
-        final String downstreamRequestHttpMethod = currentRouteMapConfiguration.getMethodMap().getOrDefault(httpServletRequest.getMethod(), httpServletRequest.getMethod());
-        final long downstreamConnectionTimeout = httpServletRequest.getAttribute("archura.downstream.connection.timeout") != null ? (long) httpServletRequest.getAttribute("archura.downstream.connection.timeout") : ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT;
-        final HttpRequest httpRequest = buildHttpRequest(
-                downstreamRequestUrl,
-                downstreamRequestHeaders,
-                downstreamRequestHttpMethod,
-                downstreamConnectionTimeout
-        );
-        log.debug("Executing route: '%s', will send downstream request: %s".formatted(currentRouteId, httpRequest));
-        return httpRequest;
-    }
-
-    private HttpRequest buildHttpRequest(
-            final String downstreamRequestUrl,
-            final Map<String, String> downstreamRequestHeaders,
-            final String downstreamRequestHttpMethod,
-            final long downstreamConnectionTimeout
-    ) {
-        HttpRequest.Builder httpRequestBuilder = HttpRequest.newBuilder()
-                .timeout(Duration.ofMillis(downstreamConnectionTimeout))
-                .uri(URI.create(downstreamRequestUrl))
-                .method(downstreamRequestHttpMethod, HttpRequest.BodyPublishers.noBody());
-        for (Map.Entry<String, String> entry : downstreamRequestHeaders.entrySet()) {
-            httpRequestBuilder = httpRequestBuilder.header(entry.getKey(), entry.getValue());
-        }
-        return httpRequestBuilder.build();
     }
 
     private void populateHttpServletResponse(
@@ -334,6 +292,52 @@ public class InitialFilter implements Filter {
         }
     }
 
+    private void runFilter(
+            final HttpServletRequest httpServletRequest,
+            final HttpServletResponse httpServletResponse,
+            final String filterName,
+            final GlobalConfiguration.FilterConfiguration configuration
+    ) {
+        final ArchuraFilter filter = filterFactory.create(filterName);
+        filter.doFilter(configuration, httpServletRequest, httpServletResponse);
+    }
+
+    private HttpRequest buildHttpRequest(
+            final HttpServletRequest httpServletRequest
+    ) {
+        final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
+        final String currentRouteId = currentRoute.getName();
+        final GlobalConfiguration.MapConfiguration currentRouteMapConfiguration = currentRoute.getMapConfiguration();
+        final String downstreamRequestUrl = currentRouteMapConfiguration.getUrl();
+        final Map<String, String> downstreamRequestHeaders = currentRouteMapConfiguration.getHeaders();
+        final String downstreamRequestHttpMethod = currentRouteMapConfiguration.getMethodMap().getOrDefault(httpServletRequest.getMethod(), httpServletRequest.getMethod());
+        final long downstreamConnectionTimeout = httpServletRequest.getAttribute("archura.downstream.connection.timeout") != null ? (long) httpServletRequest.getAttribute("archura.downstream.connection.timeout") : ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT;
+        final HttpRequest httpRequest = buildHttpRequest(
+                downstreamRequestUrl,
+                downstreamRequestHeaders,
+                downstreamRequestHttpMethod,
+                downstreamConnectionTimeout
+        );
+        log.debug("Executing route: '%s', will send downstream request: %s".formatted(currentRouteId, httpRequest));
+        return httpRequest;
+    }
+
+    private HttpRequest buildHttpRequest(
+            final String downstreamRequestUrl,
+            final Map<String, String> downstreamRequestHeaders,
+            final String downstreamRequestHttpMethod,
+            final long downstreamConnectionTimeout
+    ) {
+        HttpRequest.Builder httpRequestBuilder = HttpRequest.newBuilder()
+                .timeout(Duration.ofMillis(downstreamConnectionTimeout))
+                .uri(URI.create(downstreamRequestUrl))
+                .method(downstreamRequestHttpMethod, HttpRequest.BodyPublishers.noBody());
+        for (Map.Entry<String, String> entry : downstreamRequestHeaders.entrySet()) {
+            httpRequestBuilder = httpRequestBuilder.header(entry.getKey(), entry.getValue());
+        }
+        return httpRequestBuilder.build();
+    }
+
     private GlobalConfiguration.RouteConfiguration findCurrentRoute(
             final HttpServletRequest httpServletRequest,
             final GlobalConfiguration.DomainConfiguration domainConfiguration,
@@ -419,25 +423,25 @@ public class InitialFilter implements Filter {
             final Map<String, String> templateVariables,
             final GlobalConfiguration.ExtractConfiguration extractConfiguration
     ) {
-        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration = extractConfiguration.getRoutePathConfiguration();
-        extractPathVariables(httpServletRequest, templateVariables, routePathConfiguration);
+        final GlobalConfiguration.PathConfiguration pathConfiguration = extractConfiguration.getPathConfiguration();
+        extractPathVariables(httpServletRequest, templateVariables, pathConfiguration);
 
-        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = extractConfiguration.getRouteHeaderConfiguration();
+        final GlobalConfiguration.HeaderConfiguration headerConfiguration = extractConfiguration.getHeaderConfiguration();
         extractHeaderVariables(requestHeaders, templateVariables, headerConfiguration);
 
-        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = extractConfiguration.getRouteQueryConfiguration();
+        final GlobalConfiguration.QueryConfiguration queryConfiguration = extractConfiguration.getQueryConfiguration();
         extractQueryVariables(httpServletRequest, templateVariables, queryConfiguration);
     }
 
     private void extractPathVariables(
             final HttpServletRequest httpServletRequest,
             final Map<String, String> templateVariables,
-            final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
+            final GlobalConfiguration.PathConfiguration pathConfiguration
     ) {
-        if (nonNull(routePathConfiguration)) {
+        if (nonNull(pathConfiguration)) {
             final String input = httpServletRequest.getRequestURI();
-            final String regex = routePathConfiguration.getRegex();
-            final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
+            final String regex = pathConfiguration.getRegex();
+            final List<String> captureGroups = pathConfiguration.getCaptureGroups();
             final Pattern pattern = Pattern.compile(regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
@@ -451,7 +455,7 @@ public class InitialFilter implements Filter {
     private void extractHeaderVariables(
             final Map<String, String> requestHeaders,
             final Map<String, String> templateVariables,
-            final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
+            final GlobalConfiguration.HeaderConfiguration headerConfiguration
     ) {
         if (nonNull(headerConfiguration) && requestHeaders.containsKey(headerConfiguration.getName())) {
             final String input = requestHeaders.get(headerConfiguration.getName());
@@ -470,7 +474,7 @@ public class InitialFilter implements Filter {
     private void extractQueryVariables(
             final HttpServletRequest httpServletRequest,
             final Map<String, String> templateVariables,
-            final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
+            final GlobalConfiguration.QueryConfiguration queryConfiguration
     ) {
         if (nonNull(queryConfiguration) && httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
             final String input = httpServletRequest.getParameter(queryConfiguration.getName());
@@ -495,14 +499,14 @@ public class InitialFilter implements Filter {
     ) {
         boolean match = false;
         final GlobalConfiguration.MatchConfiguration matchConfiguration = routeConfiguration.getMatchConfiguration();
-        final GlobalConfiguration.RoutePathConfiguration routePathConfiguration = matchConfiguration.getRoutePathConfiguration();
-        match = isPathMatch(uri, templateVariables, match, routePathConfiguration);
+        final GlobalConfiguration.PathConfiguration pathConfiguration = matchConfiguration.getPathConfiguration();
+        match = isPathMatch(uri, templateVariables, match, pathConfiguration);
 
-        final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration = matchConfiguration.getRouteHeaderConfiguration();
+        final GlobalConfiguration.HeaderConfiguration headerConfiguration = matchConfiguration.getHeaderConfiguration();
         match = isHeaderMatch(requestHeaders, templateVariables, match, headerConfiguration);
 
-        final GlobalConfiguration.RouteQueryConfiguration queryConfiguration = matchConfiguration.getRouteQueryConfiguration();
-        match = isQueryMatch(httpServletRequest, templateVariables, match, routePathConfiguration, queryConfiguration);
+        final GlobalConfiguration.QueryConfiguration queryConfiguration = matchConfiguration.getQueryConfiguration();
+        match = isQueryMatch(httpServletRequest, templateVariables, match, pathConfiguration, queryConfiguration);
 
         if (match) {
             final GlobalConfiguration.ExtractConfiguration extractConfiguration = routeConfiguration.getExtractConfiguration();
@@ -518,15 +522,15 @@ public class InitialFilter implements Filter {
             final String input,
             final Map<String, String> templateVariables,
             boolean match,
-            final GlobalConfiguration.RoutePathConfiguration routePathConfiguration
+            final GlobalConfiguration.PathConfiguration pathConfiguration
     ) {
-        if (nonNull(routePathConfiguration)) {
-            final String regex = routePathConfiguration.getRegex();
-            final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
-            if (isNull(routePathConfiguration.getPattern())) {
-                routePathConfiguration.setPattern(Pattern.compile(regex));
+        if (nonNull(pathConfiguration)) {
+            final String regex = pathConfiguration.getRegex();
+            final List<String> captureGroups = pathConfiguration.getCaptureGroups();
+            if (isNull(pathConfiguration.getPattern())) {
+                pathConfiguration.setPattern(Pattern.compile(regex));
             }
-            final Pattern pattern = routePathConfiguration.getPattern();
+            final Pattern pattern = pathConfiguration.getPattern();
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
                 for (String group : captureGroups) {
@@ -544,7 +548,7 @@ public class InitialFilter implements Filter {
             final Map<String, String> requestHeaders,
             final Map<String, String> templateVariables,
             boolean match,
-            final GlobalConfiguration.RouteHeaderConfiguration headerConfiguration
+            final GlobalConfiguration.HeaderConfiguration headerConfiguration
     ) {
         if (nonNull(headerConfiguration)) {
             if (requestHeaders.containsKey(headerConfiguration.getName())) {
@@ -575,14 +579,14 @@ public class InitialFilter implements Filter {
             final HttpServletRequest httpServletRequest,
             final Map<String, String> templateVariables,
             boolean match,
-            final GlobalConfiguration.RoutePathConfiguration routePathConfiguration,
-            final GlobalConfiguration.RouteQueryConfiguration queryConfiguration
+            final GlobalConfiguration.PathConfiguration pathConfiguration,
+            final GlobalConfiguration.QueryConfiguration queryConfiguration
     ) {
         if (nonNull(queryConfiguration)) {
             if (httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
                 final String input = httpServletRequest.getParameter(queryConfiguration.getName());
                 final String regex = queryConfiguration.getRegex();
-                final List<String> captureGroups = routePathConfiguration.getCaptureGroups();
+                final List<String> captureGroups = pathConfiguration.getCaptureGroups();
                 if (isNull(queryConfiguration.getPattern())) {
                     queryConfiguration.setPattern(Pattern.compile(regex));
                 }
@@ -665,14 +669,20 @@ public class InitialFilter implements Filter {
         return requestHeaders;
     }
 
-    private void runFilter(
-            final HttpServletRequest httpServletRequest,
+    private void writeToHttpServletResponse(
             final HttpServletResponse httpServletResponse,
-            final String filterName,
-            final GlobalConfiguration.FilterConfiguration configuration
-    ) {
-        final ArchuraFilter filter = filterFactory.create(filterName);
-        filter.doFilter(configuration, httpServletRequest, httpServletResponse);
+            final HttpResponse<InputStream> httpResponse
+    ) throws IOException {
+        int responseTotalLength = 0;
+        try (InputStream responseInputStream = httpResponse.body()) {
+            byte[] buf = new byte[8192];
+            int length;
+            while ((length = responseInputStream.read(buf)) != -1) {
+                httpServletResponse.getOutputStream().write(buf, 0, length);
+                responseTotalLength += length;
+            }
+        }
+        httpServletResponse.setContentLength(responseTotalLength);
     }
 
     @Override
