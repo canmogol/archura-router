@@ -1,5 +1,6 @@
 package io.archura.router.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -93,6 +94,7 @@ public class GlobalConfiguration {
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
+    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "__class")
     public static class FilterConfiguration {
         private Map<String, String> parameters = new HashMap<>();
     }
