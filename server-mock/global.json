@@ -1,15 +1,21 @@
 {
   "configurationServerURL": "http://localhost:9010",
   "notificationServerURL": "ws://localhost:9000",
+  "dynamicConfigurationEnabled": false,
   "preFilters": {
     "domain": {
       "parameters": {}
+    },
+    "tenant": {
+      "parameters": {},
+      "extractConfiguration": {}
     }
   },
   "domains": {
     "localhost:8080": {
-      "name": "localhost",
-      "customerAccount": "default",
+      "name": "localhost:8080",
+      "customerAccount": "localhost",
+      "defaultTenant": "default",
       "preFilters": {},
       "postFilters": {},
       "tenants": {
