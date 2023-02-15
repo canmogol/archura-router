@@ -34,6 +34,7 @@ public class InitialFilter implements Filter {
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT))
             .executor(Executors.newVirtualThreadPerTaskExecutor())
+            .version(HttpClient.Version.HTTP_2)
             .build();
 
     private final GlobalConfiguration globalConfiguration;
@@ -221,8 +222,11 @@ public class InitialFilter implements Filter {
         }
         // set response headers
         for (Map.Entry<String, List<String>> entry : httpResponse.headers().map().entrySet()) {
-            httpResponse.headers().firstValue(entry.getKey())
-                    .ifPresent(value -> httpServletResponse.setHeader(entry.getKey(), value));
+            final String headerName = entry.getKey();
+            if (!RESTRICTED_HEADER_NAMES.contains(headerName)) {
+                httpResponse.headers().firstValue(headerName)
+                        .ifPresent(value -> httpServletResponse.setHeader(headerName, value));
+            }
         }
         // set response status and content type and length
         httpServletResponse.setStatus(responseStatus);
@@ -312,11 +316,14 @@ public class InitialFilter implements Filter {
         final Map<String, String> downstreamRequestHeaders = currentRouteMapConfiguration.getHeaders();
         final String downstreamRequestHttpMethod = currentRouteMapConfiguration.getMethodMap().getOrDefault(httpServletRequest.getMethod(), httpServletRequest.getMethod());
         final long downstreamConnectionTimeout = httpServletRequest.getAttribute("archura.downstream.connection.timeout") != null ? (long) httpServletRequest.getAttribute("archura.downstream.connection.timeout") : ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT;
+
+        // build downstream request
         final HttpRequest httpRequest = buildHttpRequest(
                 downstreamRequestUrl,
                 downstreamRequestHeaders,
                 downstreamRequestHttpMethod,
-                downstreamConnectionTimeout
+                downstreamConnectionTimeout,
+                httpServletRequest
         );
         log.debug("Executing route: '%s', will send downstream request: %s".formatted(currentRouteId, httpRequest));
         return httpRequest;
@@ -326,7 +333,8 @@ public class InitialFilter implements Filter {
             final String downstreamRequestUrl,
             final Map<String, String> downstreamRequestHeaders,
             final String downstreamRequestHttpMethod,
-            final long downstreamConnectionTimeout
+            final long downstreamConnectionTimeout,
+            final HttpServletRequest httpServletRequest
     ) {
         HttpRequest.Builder httpRequestBuilder = HttpRequest.newBuilder()
                 .timeout(Duration.ofMillis(downstreamConnectionTimeout))
@@ -334,6 +342,18 @@ public class InitialFilter implements Filter {
                 .method(downstreamRequestHttpMethod, HttpRequest.BodyPublishers.noBody());
         for (Map.Entry<String, String> entry : downstreamRequestHeaders.entrySet()) {
             httpRequestBuilder = httpRequestBuilder.header(entry.getKey(), entry.getValue());
+        }
+        final String requestHttpMethod = httpServletRequest.getMethod();
+        if (requestHttpMethod.equalsIgnoreCase("POST")
+                || requestHttpMethod.equalsIgnoreCase("PUT")
+                || requestHttpMethod.equalsIgnoreCase("PATCH")) {
+            httpRequestBuilder = httpRequestBuilder.method(downstreamRequestHttpMethod, HttpRequest.BodyPublishers.ofInputStream(() -> {
+                try {
+                    return httpServletRequest.getInputStream();
+                } catch (IOException e) {
+                    throw new ArchuraFilterException(HttpStatus.BAD_REQUEST.value(), "Error while reading request body", e);
+                }
+            }));
         }
         return httpRequestBuilder.build();
     }
@@ -673,16 +693,14 @@ public class InitialFilter implements Filter {
             final HttpServletResponse httpServletResponse,
             final HttpResponse<InputStream> httpResponse
     ) throws IOException {
-        int responseTotalLength = 0;
         try (InputStream responseInputStream = httpResponse.body()) {
             byte[] buf = new byte[8192];
             int length;
             while ((length = responseInputStream.read(buf)) != -1) {
                 httpServletResponse.getOutputStream().write(buf, 0, length);
-                responseTotalLength += length;
             }
         }
-        httpServletResponse.setContentLength(responseTotalLength);
+        httpServletResponse.getOutputStream().flush();
     }
 
     @Override
