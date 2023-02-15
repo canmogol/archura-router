@@ -40,7 +40,7 @@ public class TenantFilter implements ArchuraFilter {
         }
         log.debug("current domain set to: '{}'", currentDomainConfiguration.getName());
         if (!(configuration instanceof final GlobalConfiguration.TenantFilterConfiguration tenantFilterConfiguration)) {
-            throw new ArchuraFilterException(HttpStatus.NOT_FOUND.value(), "Provided configuration is not a TenantFilterConfiguration object.");
+            throw new ArchuraFilterException(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Provided configuration is not a TenantFilterConfiguration object.");
         }
         // extract tenant from request
         final String tenantId = findTenantId(httpServletRequest, tenantFilterConfiguration, currentDomainConfiguration.getDefaultTenantId());
