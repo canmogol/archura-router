@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -300,6 +301,14 @@ public class GlobalConfiguration {
          * Body to be returned.
          */
         private String body;
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class BlackListFilterConfiguration extends FilterConfiguration {
+        private List<String> ips = new ArrayList<>();
     }
 
 }

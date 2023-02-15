@@ -6,6 +6,7 @@ public class ArchuraKeys {
     public static final String ARCHURA_CURRENT_DOMAIN = "archura.current.domain";
     public static final String ARCHURA_CURRENT_TENANT = "archura.current.tenant";
     public static final String ARCHURA_CURRENT_ROUTE = "archura.current.route";
+    public static final String ARCHURA_CURRENT_CLIENT_IP = "archura.current.client.ip";
     public static final String ARCHURA_DOMAIN_NOT_FOUND_URL = "archura.domain.not-found.url";
     public static final String ARCHURA_REQUEST_HEADERS = "archura.request.headers";
     public static final String DEFAULT_HTTP_METHOD = "GET";
