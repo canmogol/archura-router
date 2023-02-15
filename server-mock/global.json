@@ -14,23 +14,32 @@
         "headerConfiguration": {
           "name": "X-Tenant-ID",
           "regex": "(?<tenantId>.*)",
-          "captureGroups": ["tenantId"]
+          "captureGroups": [
+            "tenantId"
+          ]
         },
         "pathConfiguration": {
           "regex": "\\/(?<tenantId>.*)\\/.*",
-          "captureGroups": ["tenantId"]
+          "captureGroups": [
+            "tenantId"
+          ]
         },
         "queryConfiguration": {
           "name": "tenant_id",
           "regex": "(?<tenantId>.*)",
-          "captureGroups": ["tenantId"]
+          "captureGroups": [
+            "tenantId"
+          ]
         }
       }
     },
     "blackList": {
       "__class": "io.archura.router.config.GlobalConfiguration$BlackListFilterConfiguration",
       "parameters": {},
-      "ips": ["10.20.30.40", "50.60.70.80"]
+      "ips": [
+        "10.20.30.40",
+        "50.60.70.80"
+      ]
     }
   },
   "domains": {
@@ -43,7 +52,12 @@
       "tenants": {
         "default": {
           "name": "default",
-          "preFilters": {},
+          "preFilters": {
+            "routeMatching": {
+              "__class": "io.archura.router.config.GlobalConfiguration$FilterConfiguration",
+              "parameters": {}
+            }
+          },
           "postFilters": {},
           "methodRoutes": {
             "GET": [
