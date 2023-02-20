@@ -1,7 +1,11 @@
 package io.archura.router.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -309,6 +313,7 @@ public class GlobalConfiguration {
     @NoArgsConstructor
     public static class BlackListFilterConfiguration extends FilterConfiguration {
         private List<String> ips = new ArrayList<>();
+        private Map<String, List<String>> domainIps = new HashMap<>();
     }
 
 }

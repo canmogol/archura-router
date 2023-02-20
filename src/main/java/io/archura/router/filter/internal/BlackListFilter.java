@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_CLIENT_IP;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_DOMAIN;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
@@ -53,6 +54,18 @@ public class BlackListFilter implements ArchuraFilter {
             if (blackListedIps.contains(clientIp)) {
                 log.debug("Client IP '{}' is blacklisted.", clientIp);
                 throw new ArchuraFilterException(HttpStatus.FORBIDDEN.value(), "Client IP is blacklisted.");
+            }
+        }
+        final Object domainConfigObject = httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+        if (nonNull(domainConfigObject) && domainConfigObject instanceof GlobalConfiguration.DomainConfiguration domainConfiguration) {
+            final String domain = domainConfiguration.getName();
+            final List<String> blackListedDomains = blackListFilterConfiguration.getDomainIps().get(domain);
+            if (nonNull(blackListedDomains) && !blackListedDomains.isEmpty()) {
+                final String clientIp = getClientIp(httpServletRequest);
+                if (blackListedDomains.contains(clientIp)) {
+                    log.debug("Client IP '{}' is blacklisted for domain '{}'.", clientIp, domain);
+                    throw new ArchuraFilterException(HttpStatus.FORBIDDEN.value(), "Client IP is blacklisted for domain.");
+                }
             }
         }
     }
