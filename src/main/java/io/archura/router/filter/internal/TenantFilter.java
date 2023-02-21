@@ -30,7 +30,7 @@ public class TenantFilter implements ArchuraFilter {
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
-        log.debug("TenantFilter");
+        log.debug("↓ TenantFilter started");
         final Object domainConfiguration = httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
         if (isNull(domainConfiguration)) {
             throw new ArchuraFilterException(HttpStatus.NOT_FOUND.value(), "No domain configuration found for request.");
@@ -38,7 +38,7 @@ public class TenantFilter implements ArchuraFilter {
         if (!(domainConfiguration instanceof final GlobalConfiguration.DomainConfiguration currentDomainConfiguration)) {
             throw new ArchuraFilterException(HttpStatus.NOT_FOUND.value(), "No DomainConfiguration found in request.");
         }
-        log.debug("current domain set to: '{}'", currentDomainConfiguration.getName());
+        log.debug("\tcurrent domain set to: '{}'", currentDomainConfiguration.getName());
         if (!(configuration instanceof final GlobalConfiguration.TenantFilterConfiguration tenantFilterConfiguration)) {
             throw new ArchuraFilterException(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Provided configuration is not a TenantFilterConfiguration object.");
         }
@@ -52,7 +52,8 @@ public class TenantFilter implements ArchuraFilter {
             throw new ArchuraFilterException(HttpStatus.NOT_FOUND.value(), "No tenant configuration found for tenantId: '%s'".formatted(tenantId));
         }
         httpServletRequest.setAttribute(ARCHURA_CURRENT_TENANT, tenantConfiguration);
-        log.debug("current tenant set to: '{}'", tenantConfiguration);
+        log.debug("\tcurrent tenant set to: '{}'", tenantConfiguration.getName());
+        log.debug("↑ TenantFilter finished");
     }
 
     private String findTenantId(
@@ -63,24 +64,30 @@ public class TenantFilter implements ArchuraFilter {
         final GlobalConfiguration.ExtractConfiguration extractConfiguration = configuration.getExtractConfiguration();
 
         // extract tenant from header
-        final GlobalConfiguration.HeaderConfiguration headerConfiguration = extractConfiguration.getHeaderConfiguration();
-        final String tenantFromHeader = getTenantFromHeader(httpServletRequest, headerConfiguration);
-        if (nonNull(tenantFromHeader)) {
-            return tenantFromHeader;
+        final List<GlobalConfiguration.HeaderConfiguration> headerConfigurations = extractConfiguration.getHeaderConfiguration();
+        for (GlobalConfiguration.HeaderConfiguration headerConfiguration : headerConfigurations) {
+            final String tenantFromHeader = getTenantFromHeader(httpServletRequest, headerConfiguration);
+            if (nonNull(tenantFromHeader)) {
+                return tenantFromHeader;
+            }
         }
 
         // extract tenant from path
-        final GlobalConfiguration.PathConfiguration pathConfiguration = extractConfiguration.getPathConfiguration();
-        final String tenantFromPath = getTenantFromPath(httpServletRequest, pathConfiguration);
-        if (nonNull(tenantFromPath)) {
-            return tenantFromPath;
+        final List<GlobalConfiguration.PathConfiguration> pathConfigurations = extractConfiguration.getPathConfiguration();
+        for (GlobalConfiguration.PathConfiguration pathConfiguration : pathConfigurations) {
+            final String tenantFromPath = getTenantFromPath(httpServletRequest, pathConfiguration);
+            if (nonNull(tenantFromPath)) {
+                return tenantFromPath;
+            }
         }
 
         // extract tenant from query
-        final GlobalConfiguration.QueryConfiguration queryConfiguration = extractConfiguration.getQueryConfiguration();
-        final String tenantFromQuery = getTenantFromQuery(httpServletRequest, queryConfiguration);
-        if (nonNull(tenantFromQuery)) {
-            return tenantFromQuery;
+        final List<GlobalConfiguration.QueryConfiguration> queryConfigurations = extractConfiguration.getQueryConfiguration();
+        for (GlobalConfiguration.QueryConfiguration queryConfiguration : queryConfigurations) {
+            final String tenantFromQuery = getTenantFromQuery(httpServletRequest, queryConfiguration);
+            if (nonNull(tenantFromQuery)) {
+                return tenantFromQuery;
+            }
         }
 
         return defaultTenantId;
@@ -120,7 +127,8 @@ public class TenantFilter implements ArchuraFilter {
             final HttpServletRequest httpServletRequest,
             final GlobalConfiguration.QueryConfiguration queryConfiguration
     ) {
-        if (nonNull(queryConfiguration) && nonNull(httpServletRequest.getQueryString())) {
+        if (nonNull(queryConfiguration) && nonNull(httpServletRequest.getQueryString())
+                && httpServletRequest.getQueryString().contains(queryConfiguration.getName())) {
             final String queryString = httpServletRequest.getQueryString();
             final String[] pairs = queryString.split("&");
             for (String pair : pairs) {
@@ -129,10 +137,7 @@ public class TenantFilter implements ArchuraFilter {
                     final String input = keyValue[1];
                     final Pattern pattern = getPattern(queryConfiguration, queryConfiguration.getRegex());
                     final List<String> captureGroups = queryConfiguration.getCaptureGroups();
-                    final String captured = getTenantId(pattern, input, captureGroups);
-                    if (captured != null) {
-                        return captured;
-                    }
+                    return getTenantId(pattern, input, captureGroups);
                 }
             }
         }
@@ -144,14 +149,15 @@ public class TenantFilter implements ArchuraFilter {
             final String input,
             final List<String> captureGroups
     ) {
-        final Matcher matcher = pattern.matcher(input);
-        if (matcher.matches()) {
-            for (String group : captureGroups) {
-                final String captured = matcher.group(group);
-                if (nonNull(captured)) {
-                    return captured;
+        try {
+            final Matcher matcher = pattern.matcher(input);
+            if (matcher.matches() && nonNull(captureGroups)) {
+                for (String group : captureGroups) {
+                    return matcher.group(group);
                 }
             }
+        } catch (Exception e) {
+            log.debug("\tNo capture group found with pattern: '{}' in input: '{}'", pattern.pattern(), input);
         }
         return null;
     }

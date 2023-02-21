@@ -10,11 +10,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.archura.router.filter.ArchuraKeys.*;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_DOMAIN;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_ROUTE;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_TENANT;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_DOMAIN_NOT_FOUND_URL;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_REQUEST_HEADERS;
+import static io.archura.router.filter.ArchuraKeys.DEFAULT_HTTP_METHOD;
 import static io.archura.router.filter.ArchuraKeys.RESTRICTED_HEADER_NAMES;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -29,7 +39,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
-        log.debug("RouteMatchingFilter");
+        log.debug("↓ RouteMatchingFilter started");
         final GlobalConfiguration.DomainConfiguration domainConfiguration =
                 (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
         final GlobalConfiguration.TenantConfiguration tenantConfiguration =
@@ -41,6 +51,8 @@ public class RouteMatchingFilter implements ArchuraFilter {
         final GlobalConfiguration.RouteConfiguration currentRoute =
                 findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
         httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
+        log.debug("\tcurrent route set to: '{}'", currentRoute.getName());
+        log.debug("↑ RouteMatchingFilter finished");
     }
 
     private GlobalConfiguration.RouteConfiguration findCurrentRoute(
@@ -78,7 +90,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
     ) {
         final String uri = httpServletRequest.getRequestURI();
         final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
-        final Map<String, String> templateVariables = new HashMap<>();
+        final Map<String, String> templateVariables = new TreeMap<>();
         for (GlobalConfiguration.RouteConfiguration routeConfiguration : routeConfigurations) {
             final Optional<GlobalConfiguration.RouteConfiguration> matched = matchRouteConfiguration(httpServletRequest, uri, requestHeaders, templateVariables, routeConfiguration);
             if (matched.isPresent()) {
@@ -104,11 +116,13 @@ public class RouteMatchingFilter implements ArchuraFilter {
         final Map<String, String> mapHeaders = mapConfiguration.getHeaders();
         for (Map.Entry<String, String> templateVariable : templateVariables.entrySet()) {
             final String value = templateVariables.get(templateVariable.getKey());
-            final String variablePattern = "\\$\\{" + templateVariable.getKey() + "}";
-            url = url.replaceAll(variablePattern, value);
-            for (Map.Entry<String, String> entry : mapHeaders.entrySet()) {
-                final String headerValue = mapHeaders.get(entry.getKey());
-                mapHeaders.put(entry.getKey(), headerValue.replaceAll(variablePattern, value));
+            if (nonNull(value)) {
+                final String variablePattern = "\\$\\{" + templateVariable.getKey() + "}";
+                url = url.replaceAll(variablePattern, value);
+                for (Map.Entry<String, String> entry : mapHeaders.entrySet()) {
+                    final String headerValue = mapHeaders.get(entry.getKey());
+                    mapHeaders.put(entry.getKey(), headerValue.replaceAll(variablePattern, value));
+                }
             }
         }
         // override request headers with map headers
@@ -128,14 +142,20 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final Map<String, String> templateVariables,
             final GlobalConfiguration.ExtractConfiguration extractConfiguration
     ) {
-        final GlobalConfiguration.PathConfiguration pathConfiguration = extractConfiguration.getPathConfiguration();
-        extractPathVariables(httpServletRequest, templateVariables, pathConfiguration);
+        final List<GlobalConfiguration.PathConfiguration> pathConfigurations = extractConfiguration.getPathConfiguration();
+        for (GlobalConfiguration.PathConfiguration pathConfiguration : pathConfigurations) {
+            extractPathVariables(httpServletRequest, templateVariables, pathConfiguration);
+        }
 
-        final GlobalConfiguration.HeaderConfiguration headerConfiguration = extractConfiguration.getHeaderConfiguration();
-        extractHeaderVariables(requestHeaders, templateVariables, headerConfiguration);
+        final List<GlobalConfiguration.HeaderConfiguration> headerConfigurations = extractConfiguration.getHeaderConfiguration();
+        for (GlobalConfiguration.HeaderConfiguration headerConfig : headerConfigurations) {
+            extractHeaderVariables(requestHeaders, templateVariables, headerConfig);
+        }
 
-        final GlobalConfiguration.QueryConfiguration queryConfiguration = extractConfiguration.getQueryConfiguration();
-        extractQueryVariables(httpServletRequest, templateVariables, queryConfiguration);
+        final List<GlobalConfiguration.QueryConfiguration> queryConfigurations = extractConfiguration.getQueryConfiguration();
+        for (GlobalConfiguration.QueryConfiguration queryConfig : queryConfigurations) {
+            extractQueryVariables(httpServletRequest, templateVariables, queryConfig);
+        }
     }
 
     private void extractPathVariables(
@@ -150,8 +170,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final Pattern pattern = Pattern.compile(regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
-                for (String group : captureGroups) {
-                    templateVariables.put("extract.path." + group, matcher.group(group));
+                if (isNull(captureGroups) || captureGroups.isEmpty()) {
+                    templateVariables.put("extract.path", matcher.group(0));
+                } else {
+                    for (String group : captureGroups) {
+                        templateVariables.put("extract.path." + group, matcher.group(group));
+                    }
                 }
             }
         }
@@ -169,8 +193,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final Pattern pattern = Pattern.compile(regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
-                for (String group : captureGroups) {
-                    templateVariables.put("extract.header." + group, matcher.group(group));
+                if (isNull(captureGroups) || captureGroups.isEmpty()) {
+                    templateVariables.put("extract.header." + headerConfiguration.getName(), matcher.group(0));
+                } else {
+                    for (String group : captureGroups) {
+                        templateVariables.put("extract.header." + group, matcher.group(group));
+                    }
                 }
             }
         }
@@ -188,8 +216,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final Pattern pattern = Pattern.compile(regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
-                for (String group : captureGroups) {
-                    templateVariables.put("extract.query." + group, matcher.group(group));
+                if (isNull(captureGroups) || captureGroups.isEmpty()) {
+                    templateVariables.put("extract.query." + queryConfiguration.getName(), matcher.group(0));
+                } else {
+                    for (String group : captureGroups) {
+                        templateVariables.put("extract.query." + group, matcher.group(group));
+                    }
                 }
             }
         }
@@ -204,14 +236,29 @@ public class RouteMatchingFilter implements ArchuraFilter {
     ) {
         boolean match = false;
         final GlobalConfiguration.MatchConfiguration matchConfiguration = routeConfiguration.getMatchConfiguration();
-        final GlobalConfiguration.PathConfiguration pathConfiguration = matchConfiguration.getPathConfiguration();
-        match = isPathMatch(uri, templateVariables, match, pathConfiguration);
+        final List<GlobalConfiguration.PathConfiguration> pathConfigurations = matchConfiguration.getPathConfiguration();
+        for (GlobalConfiguration.PathConfiguration pathConfiguration : pathConfigurations) {
+            match = isPathMatch(uri, templateVariables, match, pathConfiguration);
+            if (!match) {
+                break;
+            }
+        }
 
-        final GlobalConfiguration.HeaderConfiguration headerConfiguration = matchConfiguration.getHeaderConfiguration();
-        match = isHeaderMatch(requestHeaders, templateVariables, match, headerConfiguration);
+        final List<GlobalConfiguration.HeaderConfiguration> headerConfigurations = matchConfiguration.getHeaderConfiguration();
+        for (GlobalConfiguration.HeaderConfiguration headerConfiguration : headerConfigurations) {
+            match = isHeaderMatch(requestHeaders, templateVariables, match, headerConfiguration);
+            if (!match) {
+                break;
+            }
+        }
 
-        final GlobalConfiguration.QueryConfiguration queryConfiguration = matchConfiguration.getQueryConfiguration();
-        match = isQueryMatch(httpServletRequest, templateVariables, match, pathConfiguration, queryConfiguration);
+        final List<GlobalConfiguration.QueryConfiguration> queryConfigurations = matchConfiguration.getQueryConfiguration();
+        for (GlobalConfiguration.QueryConfiguration queryConfiguration : queryConfigurations) {
+            match = isQueryMatch(httpServletRequest, templateVariables, match, queryConfiguration);
+            if (!match) {
+                break;
+            }
+        }
 
         if (match) {
             final GlobalConfiguration.ExtractConfiguration extractConfiguration = routeConfiguration.getExtractConfiguration();
@@ -238,8 +285,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final Pattern pattern = pathConfiguration.getPattern();
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
-                for (String group : captureGroups) {
-                    templateVariables.put("match.path." + group, matcher.group(group));
+                if (isNull(captureGroups) || captureGroups.isEmpty()) {
+                    templateVariables.put("match.path", matcher.group(0));
+                } else {
+                    for (String group : captureGroups) {
+                        templateVariables.put("match.path." + group, matcher.group(group));
+                    }
                 }
                 match = true;
             } else {
@@ -266,8 +317,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
                 final Pattern pattern = headerConfiguration.getPattern();
                 final Matcher matcher = pattern.matcher(input);
                 if (matcher.matches()) {
-                    for (String group : captureGroups) {
-                        templateVariables.put("match.header." + group, matcher.group(group));
+                    if (isNull(captureGroups) || captureGroups.isEmpty()) {
+                        templateVariables.put("match.header." + headerConfiguration.getName(), matcher.group(0));
+                    } else {
+                        for (String group : captureGroups) {
+                            templateVariables.put("match.header." + group, matcher.group(group));
+                        }
                     }
                     match = true;
                 } else {
@@ -284,22 +339,25 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final HttpServletRequest httpServletRequest,
             final Map<String, String> templateVariables,
             boolean match,
-            final GlobalConfiguration.PathConfiguration pathConfiguration,
             final GlobalConfiguration.QueryConfiguration queryConfiguration
     ) {
         if (nonNull(queryConfiguration)) {
             if (httpServletRequest.getParameterMap().containsKey(queryConfiguration.getName())) {
                 final String input = httpServletRequest.getParameter(queryConfiguration.getName());
                 final String regex = queryConfiguration.getRegex();
-                final List<String> captureGroups = pathConfiguration.getCaptureGroups();
+                final List<String> captureGroups = queryConfiguration.getCaptureGroups();
                 if (isNull(queryConfiguration.getPattern())) {
                     queryConfiguration.setPattern(Pattern.compile(regex));
                 }
                 final Pattern pattern = queryConfiguration.getPattern();
                 final Matcher matcher = pattern.matcher(input);
                 if (matcher.matches()) {
-                    for (String group : captureGroups) {
-                        templateVariables.put("match.query." + group, matcher.group(group));
+                    if (isNull(captureGroups) || captureGroups.isEmpty()) {
+                        templateVariables.put("match.query." + queryConfiguration.getName(), matcher.group(0));
+                    } else {
+                        for (String group : captureGroups) {
+                            templateVariables.put("match.query." + group, matcher.group(group));
+                        }
                     }
                     match = true;
                 } else {

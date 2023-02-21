@@ -43,7 +43,7 @@ public class BlackListFilter implements ArchuraFilter {
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
-        log.debug("BlackWhiteListFilter");
+        log.debug("↓ BlackListFilter started");
         if (!(configuration instanceof final GlobalConfiguration.BlackListFilterConfiguration blackListFilterConfiguration)) {
             throw new ArchuraFilterException(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Provided configuration is not a BlackListFilterConfiguration object.");
         }
@@ -52,7 +52,7 @@ public class BlackListFilter implements ArchuraFilter {
         if (!blackListedIps.isEmpty()) {
             final String clientIp = getClientIp(httpServletRequest);
             if (blackListedIps.contains(clientIp)) {
-                log.debug("Client IP '{}' is blacklisted.", clientIp);
+                log.debug("\tClient IP '{}' is blacklisted.", clientIp);
                 throw new ArchuraFilterException(HttpStatus.FORBIDDEN.value(), "Client IP is blacklisted.");
             }
         }
@@ -63,11 +63,12 @@ public class BlackListFilter implements ArchuraFilter {
             if (nonNull(blackListedDomains) && !blackListedDomains.isEmpty()) {
                 final String clientIp = getClientIp(httpServletRequest);
                 if (blackListedDomains.contains(clientIp)) {
-                    log.debug("Client IP '{}' is blacklisted for domain '{}'.", clientIp, domain);
+                    log.debug("\tClient IP '{}' is blacklisted for domain '{}'.", clientIp, domain);
                     throw new ArchuraFilterException(HttpStatus.FORBIDDEN.value(), "Client IP is blacklisted for domain.");
                 }
             }
         }
+        log.debug("↑ BlackListFilter finished");
     }
 
     private String getClientIp(final HttpServletRequest httpServletRequest) {

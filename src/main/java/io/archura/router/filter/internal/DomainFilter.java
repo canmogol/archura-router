@@ -37,9 +37,8 @@ public class DomainFilter implements ArchuraFilter {
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
-        log.debug("DomainFilter");
+        log.debug("↓ DomainFilter started");
         final String host = httpServletRequest.getHeader(HEADER_NAME_HOST);
-        log.debug("method: '{}' url: '{}', host: '{}'", httpServletRequest.getMethod(), httpServletRequest.getRequestURL(), host);
         if (isNull(host)) {
             throw new ArchuraFilterException(HttpStatus.BAD_REQUEST.value(), "Host header is missing");
         }
@@ -54,7 +53,8 @@ public class DomainFilter implements ArchuraFilter {
         }
         final GlobalConfiguration.DomainConfiguration domainConfiguration = domains.get(host);
         httpServletRequest.setAttribute(ARCHURA_CURRENT_DOMAIN, domainConfiguration);
-        log.debug("current domain set to: '{}'", httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN));
+        log.debug("\tcurrent domain set to: '{}'", domainConfiguration.getName());
+        log.debug("↑ DomainFilter finished");
     }
 
     private GlobalConfiguration.DomainConfiguration fetchDomainConfiguration(final String domain) {
