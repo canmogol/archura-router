@@ -11,26 +11,32 @@
       "__class": "io.archura.router.config.GlobalConfiguration$TenantFilterConfiguration",
       "parameters": {},
       "extractConfiguration": {
-        "headerConfiguration": {
-          "name": "X-Tenant-ID",
-          "regex": "(?<tenantId>.*)",
-          "captureGroups": [
-            "tenantId"
-          ]
-        },
-        "pathConfiguration": {
-          "regex": "\\/(?<tenantId>.*)\\/.*",
-          "captureGroups": [
-            "tenantId"
-          ]
-        },
-        "queryConfiguration": {
-          "name": "tenant_id",
-          "regex": "(?<tenantId>.*)",
-          "captureGroups": [
-            "tenantId"
-          ]
-        }
+        "headerConfiguration": [
+          {
+            "name": "X-Tenant-ID",
+            "regex": "(?<tenantId>.*)",
+            "captureGroups": [
+              "tenantId"
+            ]
+          }
+        ],
+        "pathConfiguration": [
+          {
+            "regex": "\\/(?<tenantId>.*)\\/.*",
+            "captureGroups": [
+              "tenantId"
+            ]
+          }
+        ],
+        "queryConfiguration": [
+          {
+            "name": "tenant_id",
+            "regex": "(?<tenantId>.*)",
+            "captureGroups": [
+              "tenantId"
+            ]
+          }
+        ]
       }
     },
     "blackList": {
@@ -41,7 +47,9 @@
         "50.60.70.80"
       ],
       "domainIps": {
-        "localhost:8080": ["10.20.30.40"]
+        "localhost:8080": [
+          "10.20.30.40"
+        ]
       }
     }
   },
@@ -69,18 +77,31 @@
                 "preFilters": {},
                 "postFilters": {},
                 "matchConfiguration": {
-                  "pathConfiguration": {
-                    "regex": ".*",
-                    "captureGroups": []
-                  }
+                  "pathConfiguration": [
+                    {
+                      "regex": ".*",
+                      "captureGroups": []
+                    }
+                  ]
                 },
-                "extractConfiguration": {},
+                "extractConfiguration": {
+                  "headerConfiguration": [
+                    {
+                      "name": "Some-Request-Header",
+                      "regex": ".*"
+                    }
+                  ]
+                },
                 "mapConfiguration": {
-                  "url": "http://localhost:9020/",
+                  "url": "http://localhost:9020${request.path}?${request.query}",
                   "methodMap": {
                     "GET": "GET"
                   },
-                  "headers": {}
+                  "headers": {
+                    "original-request-method": "${request.method}",
+                    "original-request-path": "${request.path}",
+                    "original-request-query": "${request.query}"
+                  }
                 }
               }
             ]

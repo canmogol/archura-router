@@ -157,18 +157,18 @@ public class GlobalConfiguration {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class MatchConfiguration {
-        private PathConfiguration pathConfiguration;
-        private HeaderConfiguration headerConfiguration;
-        private QueryConfiguration queryConfiguration;
+        private List<PathConfiguration> pathConfiguration = new ArrayList<>();
+        private List<HeaderConfiguration> headerConfiguration = new ArrayList<>();
+        private List<QueryConfiguration> queryConfiguration = new ArrayList<>();
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ExtractConfiguration {
-        private PathConfiguration pathConfiguration;
-        private HeaderConfiguration headerConfiguration;
-        private QueryConfiguration queryConfiguration;
+        private List<PathConfiguration> pathConfiguration = new ArrayList<>();
+        private List<HeaderConfiguration> headerConfiguration = new ArrayList<>();
+        private List<QueryConfiguration> queryConfiguration = new ArrayList<>();
     }
 
     @Data
