@@ -2,7 +2,12 @@ package io.archura.router.filter;
 
 import io.archura.router.config.GlobalConfiguration;
 import io.archura.router.filter.exception.ArchuraFilterException;
-import jakarta.servlet.*;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +26,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
-import static io.archura.router.filter.ArchuraKeys.*;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_DOMAIN;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_ROUTE;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_TENANT;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT;
+import static io.archura.router.filter.ArchuraKeys.RESTRICTED_HEADER_NAMES;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
@@ -50,11 +59,15 @@ public class InitialFilter implements Filter {
             final ServletResponse servletResponse,
             final FilterChain filterChain
     ) throws IOException, ServletException {
+        log.debug("↓ InitialFilter started");
         if (servletRequest instanceof HttpServletRequest httpServletRequest
                 && servletResponse instanceof HttpServletResponse httpServletResponse) {
             handleHttpRequest(httpServletRequest, httpServletResponse);
+            log.debug("↑ InitialFilter finished");
         } else {
+            log.debug("InitialFilter will not handle the request");
             filterChain.doFilter(servletRequest, servletResponse);
+            log.debug("↑ InitialFilter finished");
         }
     }
 
@@ -81,7 +94,9 @@ public class InitialFilter implements Filter {
                     // handle downstream request
                     // send downstream request and get response
                     final HttpRequest httpRequest = buildHttpRequest(httpServletRequest);
+                    log.debug("executing route: '%s', will send downstream request: %s %s".formatted(currentRoute.getName(), httpRequest.method(), httpRequest.uri()));
                     final HttpResponse<InputStream> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+                    log.debug("executing route: '%s', got downstream response code: %s ".formatted(currentRoute.getName(), httpResponse.statusCode()));
                     populateHttpServletResponse(httpServletResponse, httpResponse);
 
                     // run global post-filters, domain post-filters, tenant post-filters, and route post-filters
@@ -93,6 +108,7 @@ public class InitialFilter implements Filter {
                     if (!httpServletResponse.isCommitted()) {
                         // read response from downstream server and write to client
                         writeToHttpServletResponse(httpServletResponse, httpResponse);
+                        log.debug("executing route: '%s', response written to client".formatted(currentRoute.getName()));
                     } else {
                         log.debug("request already handled by the post-filters");
                     }
@@ -125,6 +141,7 @@ public class InitialFilter implements Filter {
     private void runGlobalPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // run global pre-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running global pre-filters");
             runPreFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPreFilters());
         }
     }
@@ -132,6 +149,7 @@ public class InitialFilter implements Filter {
     private void runDomainPreFilters(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // run domain pre-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running domain pre-filters");
             // get current domain configuration
             if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN))) {
                 final GlobalConfiguration.DomainConfiguration defaultDomain = new GlobalConfiguration.DomainConfiguration();
@@ -149,6 +167,7 @@ public class InitialFilter implements Filter {
     ) {
         // run tenant pre-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running tenant pre-filters");
             // get current tenant configuration
             if (isNull(httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT))) {
                 final GlobalConfiguration.TenantConfiguration defaultTenant = new GlobalConfiguration.TenantConfiguration();
@@ -166,6 +185,7 @@ public class InitialFilter implements Filter {
     ) {
         // run route pre-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running route pre-filters");
             final GlobalConfiguration.RouteConfiguration routeConfiguration =
                     (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
             runPreFilters(httpServletRequest, httpServletResponse, routeConfiguration.getPreFilters());
@@ -232,6 +252,7 @@ public class InitialFilter implements Filter {
     ) {
         // run global post-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running global post-filters");
             runPostFilters(httpServletRequest, httpServletResponse, globalConfiguration.getPostFilters());
         }
     }
@@ -242,6 +263,7 @@ public class InitialFilter implements Filter {
     ) {
         // run domain post-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running domain post-filters");
             // get current domain configuration
             final GlobalConfiguration.DomainConfiguration domainConfiguration =
                     (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
@@ -255,6 +277,7 @@ public class InitialFilter implements Filter {
     ) {
         // run tenant post-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running tenant post-filters");
             // get current tenant configuration
             final GlobalConfiguration.TenantConfiguration tenantConfiguration =
                     (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
@@ -268,6 +291,7 @@ public class InitialFilter implements Filter {
     ) {
         // run tenant post-filters
         if (!httpServletResponse.isCommitted()) {
+            log.debug("running route post-filters");
             // get current route configuration
             final GlobalConfiguration.RouteConfiguration currentRoute =
                     (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
@@ -295,6 +319,7 @@ public class InitialFilter implements Filter {
             final String filterName,
             final GlobalConfiguration.FilterConfiguration configuration
     ) {
+        log.debug("running filter '%s'".formatted(filterName));
         final ArchuraFilter filter = filterFactory.create(filterName);
         filter.doFilter(configuration, httpServletRequest, httpServletResponse);
     }
@@ -303,7 +328,6 @@ public class InitialFilter implements Filter {
             final HttpServletRequest httpServletRequest
     ) {
         final GlobalConfiguration.RouteConfiguration currentRoute = (GlobalConfiguration.RouteConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
-        final String currentRouteId = currentRoute.getName();
         final GlobalConfiguration.MapConfiguration currentRouteMapConfiguration = currentRoute.getMapConfiguration();
         final String downstreamRequestUrl = currentRouteMapConfiguration.getUrl();
         final Map<String, String> downstreamRequestHeaders = currentRouteMapConfiguration.getHeaders();
@@ -311,15 +335,13 @@ public class InitialFilter implements Filter {
         final long downstreamConnectionTimeout = httpServletRequest.getAttribute("archura.downstream.connection.timeout") != null ? (long) httpServletRequest.getAttribute("archura.downstream.connection.timeout") : ARCHURA_DOWNSTREAM_CONNECTION_TIMEOUT;
 
         // build downstream request
-        final HttpRequest httpRequest = buildHttpRequest(
+        return buildHttpRequest(
                 downstreamRequestUrl,
                 downstreamRequestHeaders,
                 downstreamRequestHttpMethod,
                 downstreamConnectionTimeout,
                 httpServletRequest
         );
-        log.debug("Executing route: '%s', will send downstream request: %s".formatted(currentRouteId, httpRequest));
-        return httpRequest;
     }
 
     private HttpRequest buildHttpRequest(
