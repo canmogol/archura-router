@@ -60,6 +60,27 @@
       "defaultTenantId": "default",
       "preFilters": {},
       "postFilters": {},
+      "methodRoutes": {
+        "GET": [
+          {
+            "name": "domain-route-01",
+            "preFilters": {},
+            "postFilters": {},
+            "matchConfiguration": {
+              "pathConfiguration": [
+                {
+                  "regex": "/not-found.html",
+                  "captureGroups": []
+                }
+              ]
+            },
+            "extractConfiguration": {},
+            "mapConfiguration": {
+              "url": "http://localhost:9020/not-found.html"
+            }
+          }
+        ]
+      },
       "tenants": {
         "default": {
           "name": "default",
@@ -79,7 +100,7 @@
                 "matchConfiguration": {
                   "pathConfiguration": [
                     {
-                      "regex": ".*",
+                      "regex": "/user/.*",
                       "captureGroups": []
                     }
                   ]

@@ -123,6 +123,7 @@ public class GlobalConfiguration {
         private Map<String, FilterConfiguration> preFilters = new HashMap<>();
         private Map<String, FilterConfiguration> postFilters = new HashMap<>();
         private Map<String, TenantConfiguration> tenants = new HashMap<>();
+        private Map<String, List<RouteConfiguration>> methodRoutes = new HashMap<>();
 
     }
 

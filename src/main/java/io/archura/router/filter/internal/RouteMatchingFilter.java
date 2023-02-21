@@ -62,21 +62,39 @@ public class RouteMatchingFilter implements ArchuraFilter {
     ) {
         final String method = httpServletRequest.getMethod();
 
-        // check for HTTP Method specific routes
-        final List<GlobalConfiguration.RouteConfiguration> routeConfigurations = tenantConfiguration.getMethodRoutes().get(method);
-        if (nonNull(routeConfigurations)) {
-            final Optional<GlobalConfiguration.RouteConfiguration> routeConfiguration = findMatchingRoute(httpServletRequest, routeConfigurations);
-            if (routeConfiguration.isPresent()) {
-                return routeConfiguration.get();
+        // check for HTTP Method specific tenant routes
+        final List<GlobalConfiguration.RouteConfiguration> tenantRouteConfigurations = tenantConfiguration.getMethodRoutes().get(method);
+        if (nonNull(tenantRouteConfigurations)) {
+            final Optional<GlobalConfiguration.RouteConfiguration> tenantRouteConfiguration = findMatchingRoute(httpServletRequest, tenantRouteConfigurations);
+            if (tenantRouteConfiguration.isPresent()) {
+                return tenantRouteConfiguration.get();
             }
         }
 
         // check for catch all routes (wildcard) for HTTP Method '*'
-        final List<GlobalConfiguration.RouteConfiguration> catchAllRoutes = tenantConfiguration.getMethodRoutes().get("*");
-        if (nonNull(catchAllRoutes)) {
-            final Optional<GlobalConfiguration.RouteConfiguration> catchAllRouteConfiguration = findMatchingRoute(httpServletRequest, catchAllRoutes);
-            if (catchAllRouteConfiguration.isPresent()) {
-                return catchAllRouteConfiguration.get();
+        final List<GlobalConfiguration.RouteConfiguration> tenantCatchAllRoutes = tenantConfiguration.getMethodRoutes().get("*");
+        if (nonNull(tenantCatchAllRoutes)) {
+            final Optional<GlobalConfiguration.RouteConfiguration> tenantCatchAllRouteConfiguration = findMatchingRoute(httpServletRequest, tenantCatchAllRoutes);
+            if (tenantCatchAllRouteConfiguration.isPresent()) {
+                return tenantCatchAllRouteConfiguration.get();
+            }
+        }
+
+        // check for HTTP Method specific domain routes
+        final List<GlobalConfiguration.RouteConfiguration> domainRouteConfigurations = domainConfiguration.getMethodRoutes().get(method);
+        if (nonNull(domainRouteConfigurations)) {
+            final Optional<GlobalConfiguration.RouteConfiguration> domainRouteConfiguration = findMatchingRoute(httpServletRequest, domainRouteConfigurations);
+            if (domainRouteConfiguration.isPresent()) {
+                return domainRouteConfiguration.get();
+            }
+        }
+
+        // check for catch all domain routes (wildcard) for HTTP Method '*'
+        final List<GlobalConfiguration.RouteConfiguration> domainCatchAllRoutes = domainConfiguration.getMethodRoutes().get("*");
+        if (nonNull(domainCatchAllRoutes)) {
+            final Optional<GlobalConfiguration.RouteConfiguration> domainCatchAllRouteConfiguration = findMatchingRoute(httpServletRequest, domainCatchAllRoutes);
+            if (domainCatchAllRouteConfiguration.isPresent()) {
+                return domainCatchAllRouteConfiguration.get();
             }
         }
 
@@ -377,7 +395,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
     ) {
         templateVariables.put("request.path", httpServletRequest.getRequestURI());
         templateVariables.put("request.method", httpServletRequest.getMethod());
-        templateVariables.put("request.query", httpServletRequest.getQueryString());
+        templateVariables.put("request.query", isNull(httpServletRequest.getQueryString()) ? "" : httpServletRequest.getQueryString());
         for (Map.Entry<String, String> entry : requestHeaders.entrySet()) {
             templateVariables.put("request.header." + entry.getKey(), entry.getValue());
         }
