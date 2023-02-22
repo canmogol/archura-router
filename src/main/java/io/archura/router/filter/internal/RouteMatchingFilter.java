@@ -101,6 +101,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
                 final GlobalConfiguration.MapConfiguration appliedMapConfiguration = applyTemplateVariables(httpServletRequest, mapConfiguration, templateVariables);
                 final GlobalConfiguration.RouteConfiguration appliedRouteConfiguration = matchedRouteConfiguration.toBuilder()
                         .mapConfiguration(appliedMapConfiguration)
+                        .variables(templateVariables)
                         .build();
                 return Optional.of(appliedRouteConfiguration);
             }
@@ -215,7 +216,10 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final String input = httpServletRequest.getParameter(queryConfiguration.getName());
             final String regex = queryConfiguration.getRegex();
             final List<String> captureGroups = queryConfiguration.getCaptureGroups();
-            final Pattern pattern = Pattern.compile(regex);
+            if (isNull(queryConfiguration.getPattern())) {
+                queryConfiguration.setPattern(Pattern.compile(regex));
+            }
+            final Pattern pattern = queryConfiguration.getPattern();
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
                 if (isNull(captureGroups) || captureGroups.isEmpty()) {
@@ -383,6 +387,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
         for (Map.Entry<String, String> entry : requestHeaders.entrySet()) {
             templateVariables.put("request.header." + entry.getKey(), entry.getValue());
         }
+        final GlobalConfiguration.DomainConfiguration domainConfiguration =
+                (GlobalConfiguration.DomainConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_DOMAIN);
+        final GlobalConfiguration.TenantConfiguration tenantConfiguration =
+                (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
+        templateVariables.put("request.domain.name", domainConfiguration.getName());
+        templateVariables.put("request.route.name", tenantConfiguration.getName());
     }
 
     private GlobalConfiguration.RouteConfiguration getNotFoundRouteConfiguration(
@@ -428,9 +438,9 @@ public class RouteMatchingFilter implements ArchuraFilter {
                     headers.put(headerName, headerValue);
                 }
             }
-            httpServletRequest.setAttribute("archura.request.headers", headers);
+            httpServletRequest.setAttribute(ARCHURA_REQUEST_HEADERS, headers);
         }
-        @SuppressWarnings("unchecked") final Map<String, String> requestHeaders = (Map<String, String>) httpServletRequest.getAttribute("archura.request.headers");
+        @SuppressWarnings("unchecked") final Map<String, String> requestHeaders = (Map<String, String>) httpServletRequest.getAttribute(ARCHURA_REQUEST_HEADERS);
         return requestHeaders;
     }
 

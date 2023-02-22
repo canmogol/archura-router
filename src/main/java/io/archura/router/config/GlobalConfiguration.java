@@ -149,6 +149,7 @@ public class GlobalConfiguration {
         private ExtractConfiguration extractConfiguration;
         private MapConfiguration mapConfiguration;
         private PredefinedResponseConfiguration predefinedResponseConfiguration;
+        private Map<String, String> variables;
     }
 
     @Data
@@ -320,6 +321,32 @@ public class GlobalConfiguration {
     public static class BlackListFilterConfiguration extends FilterConfiguration {
         private List<String> ips = new ArrayList<>();
         private Map<String, List<String>> domainIps = new HashMap<>();
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class HeaderFilterConfiguration extends FilterConfiguration {
+        private Map<String, HeaderOperations> routeOperations = new HashMap<>();
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class HeaderOperations extends FilterConfiguration {
+        private Map<String, List<HeaderOperation>> operations = new HashMap<>();
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class HeaderOperation extends FilterConfiguration {
+        private String name;
+        private String value;
+        private String regex;
     }
 
 }

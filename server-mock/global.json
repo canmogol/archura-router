@@ -85,6 +85,51 @@
               }
             ]
           }
+        },
+        "header": {
+          "__class": "io.archura.router.config.GlobalConfiguration$HeaderFilterConfiguration",
+          "parameters": {},
+          "routes": {
+            "*": {
+              "add": [
+                {
+                  "name": "Archura-Original-Method",
+                  "value": "${request.method}"
+                },
+                {
+                  "name": "Archura-Original-Path",
+                  "value": "${request.path}"
+                },
+                {
+                  "name": "Archura-Request-Domain",
+                  "value": "${request.domain.name}"
+                },
+                {
+                  "name": "Archura-Request-Tenant",
+                  "value": "${request.tenant.name}"
+                }
+              ]
+            },
+            "domain-route-01": {
+              "add": [
+                {
+                  "name": "Another-Request-Header",
+                  "value": "some-value"
+                }
+              ],
+              "remove": [
+                {
+                  "name": "Some-Request-Header"
+                }
+              ],
+              "validate": [
+                {
+                  "name": "Only-Numbers-Header",
+                  "regex": "^\\d+$"
+                }
+              ]
+            }
+          }
         }
       },
       "postFilters": {},
