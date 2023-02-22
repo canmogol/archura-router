@@ -331,6 +331,7 @@ public class GlobalConfiguration {
         private List<HeaderOperation> add = new ArrayList<>();
         private List<HeaderOperation> remove = new ArrayList<>();
         private List<HeaderOperation> validate = new ArrayList<>();
+        private List<HeaderOperation> mandatory = new ArrayList<>();
     }
 
     @Data

@@ -94,6 +94,11 @@
               "name": "Only-Numbers-Header",
               "regex": "^\\d+$"
             }
+          ],
+          "mandatory": [
+            {
+              "name": "Mandatory-Header"
+            }
           ]
         },
         "routeMatching": {

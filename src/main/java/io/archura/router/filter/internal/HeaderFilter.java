@@ -96,6 +96,19 @@ public class HeaderFilter implements ArchuraFilter {
                 }
             }
         }
+
+        final List<GlobalConfiguration.HeaderOperation> mandatoryOperations = configuration.getMandatory();
+        if (nonNull(mandatoryOperations)) {
+            for (final GlobalConfiguration.HeaderOperation mandatoryOperation : mandatoryOperations) {
+                if (nonNull(mandatoryOperation.getName()) && !requestHeaders.containsKey(mandatoryOperation.getName().toLowerCase())) {
+                    throw new ArchuraFilterException(
+                            HttpStatus.BAD_REQUEST.value(),
+                            "Header '%s' is mandatory but not present in request.".formatted(mandatoryOperation.getName())
+                    );
+                }
+            }
+        }
+
         httpServletRequest.setAttribute(ARCHURA_REQUEST_HEADERS, requestHeaders);
     }
 
