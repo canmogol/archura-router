@@ -123,8 +123,6 @@ public class GlobalConfiguration {
         private Map<String, FilterConfiguration> preFilters = new HashMap<>();
         private Map<String, FilterConfiguration> postFilters = new HashMap<>();
         private Map<String, TenantConfiguration> tenants = new HashMap<>();
-        private Map<String, List<RouteConfiguration>> methodRoutes = new HashMap<>();
-
     }
 
     @Data
@@ -134,7 +132,6 @@ public class GlobalConfiguration {
         private String name;
         private Map<String, FilterConfiguration> preFilters = new HashMap<>();
         private Map<String, FilterConfiguration> postFilters = new HashMap<>();
-        private Map<String, List<RouteConfiguration>> methodRoutes = new HashMap<>();
 
     }
 
@@ -306,6 +303,14 @@ public class GlobalConfiguration {
          * Body to be returned.
          */
         private String body;
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class RouteMatchingFilterConfiguration extends FilterConfiguration {
+        private Map<String, List<RouteConfiguration>> methodRoutes = new HashMap<>();
     }
 
     @Data

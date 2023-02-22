@@ -19,6 +19,7 @@ public class HeaderFilter implements ArchuraFilter {
             final HttpServletRequest httpServletRequest,
             final HttpServletResponse httpServletResponse
     ) throws ArchuraFilterException {
-        log.debug("HeaderFilter");
+        log.debug("↓ HeaderFilter started");
+        log.debug("↓ HeaderFilter finished");
     }
 }

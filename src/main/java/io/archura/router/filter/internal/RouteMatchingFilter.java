@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_DOMAIN;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_ROUTE;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_TENANT;
-import static io.archura.router.filter.ArchuraKeys.ARCHURA_DOMAIN_NOT_FOUND_URL;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_NOT_FOUND_URL;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_REQUEST_HEADERS;
 import static io.archura.router.filter.ArchuraKeys.DEFAULT_HTTP_METHOD;
 import static io.archura.router.filter.ArchuraKeys.RESTRICTED_HEADER_NAMES;
@@ -47,9 +47,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
         if (isNull(domainConfiguration) || isNull(tenantConfiguration)) {
             throw new ArchuraFilterException(HttpStatus.NOT_FOUND.value(), "No domain or tenant configuration found for request.");
         }
+        if (!(configuration instanceof final GlobalConfiguration.RouteMatchingFilterConfiguration routeMatchingFilterConfiguration)) {
+            throw new ArchuraFilterException(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Provided configuration is not a RouteMatchingFilterConfiguration object.");
+        }
         // find current route
         final GlobalConfiguration.RouteConfiguration currentRoute =
-                findCurrentRoute(httpServletRequest, domainConfiguration, tenantConfiguration);
+                findCurrentRoute(httpServletRequest, routeMatchingFilterConfiguration);
         httpServletRequest.setAttribute(ARCHURA_CURRENT_ROUTE, currentRoute);
         log.debug("\tcurrent route set to: '{}'", currentRoute.getName());
         log.debug("↑ RouteMatchingFilter finished");
@@ -57,13 +60,12 @@ public class RouteMatchingFilter implements ArchuraFilter {
 
     private GlobalConfiguration.RouteConfiguration findCurrentRoute(
             final HttpServletRequest httpServletRequest,
-            final GlobalConfiguration.DomainConfiguration domainConfiguration,
-            final GlobalConfiguration.TenantConfiguration tenantConfiguration
+            final GlobalConfiguration.RouteMatchingFilterConfiguration configuration
     ) {
         final String method = httpServletRequest.getMethod();
 
         // check for HTTP Method specific tenant routes
-        final List<GlobalConfiguration.RouteConfiguration> tenantRouteConfigurations = tenantConfiguration.getMethodRoutes().get(method);
+        final List<GlobalConfiguration.RouteConfiguration> tenantRouteConfigurations = configuration.getMethodRoutes().get(method);
         if (nonNull(tenantRouteConfigurations)) {
             final Optional<GlobalConfiguration.RouteConfiguration> tenantRouteConfiguration = findMatchingRoute(httpServletRequest, tenantRouteConfigurations);
             if (tenantRouteConfiguration.isPresent()) {
@@ -72,7 +74,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
         }
 
         // check for catch all routes (wildcard) for HTTP Method '*'
-        final List<GlobalConfiguration.RouteConfiguration> tenantCatchAllRoutes = tenantConfiguration.getMethodRoutes().get("*");
+        final List<GlobalConfiguration.RouteConfiguration> tenantCatchAllRoutes = configuration.getMethodRoutes().get("*");
         if (nonNull(tenantCatchAllRoutes)) {
             final Optional<GlobalConfiguration.RouteConfiguration> tenantCatchAllRouteConfiguration = findMatchingRoute(httpServletRequest, tenantCatchAllRoutes);
             if (tenantCatchAllRouteConfiguration.isPresent()) {
@@ -80,26 +82,8 @@ public class RouteMatchingFilter implements ArchuraFilter {
             }
         }
 
-        // check for HTTP Method specific domain routes
-        final List<GlobalConfiguration.RouteConfiguration> domainRouteConfigurations = domainConfiguration.getMethodRoutes().get(method);
-        if (nonNull(domainRouteConfigurations)) {
-            final Optional<GlobalConfiguration.RouteConfiguration> domainRouteConfiguration = findMatchingRoute(httpServletRequest, domainRouteConfigurations);
-            if (domainRouteConfiguration.isPresent()) {
-                return domainRouteConfiguration.get();
-            }
-        }
-
-        // check for catch all domain routes (wildcard) for HTTP Method '*'
-        final List<GlobalConfiguration.RouteConfiguration> domainCatchAllRoutes = domainConfiguration.getMethodRoutes().get("*");
-        if (nonNull(domainCatchAllRoutes)) {
-            final Optional<GlobalConfiguration.RouteConfiguration> domainCatchAllRouteConfiguration = findMatchingRoute(httpServletRequest, domainCatchAllRoutes);
-            if (domainCatchAllRouteConfiguration.isPresent()) {
-                return domainCatchAllRouteConfiguration.get();
-            }
-        }
-
         // return not found route
-        return getNotFoundRouteConfiguration(httpServletRequest, domainConfiguration);
+        return getNotFoundRouteConfiguration(httpServletRequest, configuration);
     }
 
     private Optional<GlobalConfiguration.RouteConfiguration> findMatchingRoute(
@@ -403,21 +387,21 @@ public class RouteMatchingFilter implements ArchuraFilter {
 
     private GlobalConfiguration.RouteConfiguration getNotFoundRouteConfiguration(
             final HttpServletRequest httpServletRequest,
-            final GlobalConfiguration.DomainConfiguration domainConfiguration
+            final GlobalConfiguration.RouteMatchingFilterConfiguration configuration
     ) {
         final GlobalConfiguration.RouteConfiguration notFoundRoute = new GlobalConfiguration.RouteConfiguration();
-        final String notFoundUrl = domainConfiguration.getParameters().get(ARCHURA_DOMAIN_NOT_FOUND_URL);
-        if (isNull(notFoundUrl)) {
+        final String notFoundUrl = configuration.getParameters().get(ARCHURA_NOT_FOUND_URL);
+        if (nonNull(notFoundUrl)) {
+            final String method = httpServletRequest.getMethod();
+            final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
+            final GlobalConfiguration.MapConfiguration notFoundMap = createNotFoundMap(requestHeaders, method, notFoundUrl);
+            notFoundRoute.setMapConfiguration(notFoundMap);
+        } else {
             notFoundRoute.setPredefinedResponseConfiguration(
                     new GlobalConfiguration.PredefinedResponseConfiguration(
                             HttpStatus.NOT_FOUND.value(),
                             "Request URL not found"
                     ));
-        } else {
-            final String method = httpServletRequest.getMethod();
-            final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
-            final GlobalConfiguration.MapConfiguration notFoundMap = createNotFoundMap(requestHeaders, method, notFoundUrl);
-            notFoundRoute.setMapConfiguration(notFoundMap);
         }
         return notFoundRoute;
     }

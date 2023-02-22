@@ -58,75 +58,82 @@
       "name": "localhost:8080",
       "customerAccount": "localhost",
       "defaultTenantId": "default",
-      "preFilters": {},
-      "postFilters": {},
-      "methodRoutes": {
-        "GET": [
-          {
-            "name": "domain-route-01",
-            "preFilters": {},
-            "postFilters": {},
-            "matchConfiguration": {
-              "pathConfiguration": [
-                {
-                  "regex": "/not-found.html",
-                  "captureGroups": []
-                }
-              ]
-            },
-            "extractConfiguration": {},
-            "mapConfiguration": {
-              "url": "http://localhost:9020/not-found.html"
-            }
-          }
-        ]
-      },
-      "tenants": {
-        "default": {
-          "name": "default",
-          "preFilters": {
-            "routeMatching": {
-              "__class": "io.archura.router.config.GlobalConfiguration$FilterConfiguration",
-              "parameters": {}
-            }
+      "preFilters": {
+        "routeMatching": {
+          "__class": "io.archura.router.config.GlobalConfiguration$RouteMatchingFilterConfiguration",
+          "parameters": {
+            "archura.not-found.url": "http://localhost:9020/not-found.html"
           },
-          "postFilters": {},
           "methodRoutes": {
             "GET": [
               {
-                "name": "route-01",
+                "name": "domain-route-01",
                 "preFilters": {},
                 "postFilters": {},
                 "matchConfiguration": {
                   "pathConfiguration": [
                     {
-                      "regex": "/user/.*",
+                      "regex": "/not-found.html",
                       "captureGroups": []
                     }
                   ]
                 },
-                "extractConfiguration": {
-                  "headerConfiguration": [
-                    {
-                      "name": "Some-Request-Header",
-                      "regex": ".*"
-                    }
-                  ]
-                },
+                "extractConfiguration": {},
                 "mapConfiguration": {
-                  "url": "http://localhost:9020${request.path}?${request.query}",
-                  "methodMap": {
-                    "GET": "GET"
-                  },
-                  "headers": {
-                    "original-request-method": "${request.method}",
-                    "original-request-path": "${request.path}",
-                    "original-request-query": "${request.query}"
-                  }
+                  "url": "http://localhost:9020/not-found.html"
                 }
               }
             ]
           }
+        }
+      },
+      "postFilters": {},
+      "tenants": {
+        "default": {
+          "name": "default",
+          "preFilters": {
+            "routeMatching": {
+              "__class": "io.archura.router.config.GlobalConfiguration$RouteMatchingFilterConfiguration",
+              "parameters": {},
+              "methodRoutes": {
+                "GET": [
+                  {
+                    "name": "route-01",
+                    "preFilters": {},
+                    "postFilters": {},
+                    "matchConfiguration": {
+                      "pathConfiguration": [
+                        {
+                          "regex": "/user/.*",
+                          "captureGroups": []
+                        }
+                      ]
+                    },
+                    "extractConfiguration": {
+                      "headerConfiguration": [
+                        {
+                          "name": "Some-Request-Header",
+                          "regex": ".*"
+                        }
+                      ]
+                    },
+                    "mapConfiguration": {
+                      "url": "http://localhost:9020${request.path}?${request.query}",
+                      "methodMap": {
+                        "GET": "GET"
+                      },
+                      "headers": {
+                        "original-request-method": "${request.method}",
+                        "original-request-path": "${request.path}",
+                        "original-request-query": "${request.query}"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "postFilters": {}
         }
       }
     }
