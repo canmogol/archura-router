@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_DOMAIN;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_ROUTE;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_CURRENT_TENANT;
-import static io.archura.router.filter.ArchuraKeys.ARCHURA_NOT_FOUND_URL;
+import static io.archura.router.filter.ArchuraKeys.ARCHURA_ROUTE_NOT_FOUND_URL;
 import static io.archura.router.filter.ArchuraKeys.ARCHURA_REQUEST_HEADERS;
 import static io.archura.router.filter.ArchuraKeys.DEFAULT_HTTP_METHOD;
 import static io.archura.router.filter.ArchuraKeys.RESTRICTED_HEADER_NAMES;
@@ -82,8 +82,14 @@ public class RouteMatchingFilter implements ArchuraFilter {
             }
         }
 
-        // return not found route
-        return getNotFoundRouteConfiguration(httpServletRequest, configuration);
+        // check if there is already a route set previously
+        final Object currentRoute = httpServletRequest.getAttribute(ARCHURA_CURRENT_ROUTE);
+        if (nonNull(currentRoute) && currentRoute instanceof GlobalConfiguration.RouteConfiguration routeConfiguration) {
+            return routeConfiguration;
+        } else {
+            // return not found route
+            return getNotFoundRouteConfiguration(httpServletRequest, configuration);
+        }
     }
 
     private Optional<GlobalConfiguration.RouteConfiguration> findMatchingRoute(
@@ -170,7 +176,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final String input = httpServletRequest.getRequestURI();
             final String regex = pathConfiguration.getRegex();
             final List<String> captureGroups = pathConfiguration.getCaptureGroups();
-            final Pattern pattern = Pattern.compile(regex);
+            final Pattern pattern = getPattern(pathConfiguration, regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
                 if (isNull(captureGroups) || captureGroups.isEmpty()) {
@@ -193,7 +199,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final String input = requestHeaders.get(headerConfiguration.getName());
             final String regex = headerConfiguration.getRegex();
             final List<String> captureGroups = headerConfiguration.getCaptureGroups();
-            final Pattern pattern = Pattern.compile(regex);
+            final Pattern pattern = getPattern(headerConfiguration, regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
                 if (isNull(captureGroups) || captureGroups.isEmpty()) {
@@ -216,10 +222,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final String input = httpServletRequest.getParameter(queryConfiguration.getName());
             final String regex = queryConfiguration.getRegex();
             final List<String> captureGroups = queryConfiguration.getCaptureGroups();
-            if (isNull(queryConfiguration.getPattern())) {
-                queryConfiguration.setPattern(Pattern.compile(regex));
-            }
-            final Pattern pattern = queryConfiguration.getPattern();
+            final Pattern pattern = getPattern(queryConfiguration, regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
                 if (isNull(captureGroups) || captureGroups.isEmpty()) {
@@ -269,7 +272,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
         if (match) {
             final GlobalConfiguration.ExtractConfiguration extractConfiguration = routeConfiguration.getExtractConfiguration();
             addExtractVariables(httpServletRequest, requestHeaders, templateVariables, extractConfiguration);
-            addRequestVariables(httpServletRequest, requestHeaders, templateVariables);
+            addRequestVariables(httpServletRequest, requestHeaders, templateVariables, routeConfiguration);
             return Optional.of(routeConfiguration);
         } else {
             return Optional.empty();
@@ -285,10 +288,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
         if (nonNull(pathConfiguration)) {
             final String regex = pathConfiguration.getRegex();
             final List<String> captureGroups = pathConfiguration.getCaptureGroups();
-            if (isNull(pathConfiguration.getPattern())) {
-                pathConfiguration.setPattern(Pattern.compile(regex));
-            }
-            final Pattern pattern = pathConfiguration.getPattern();
+            final Pattern pattern = getPattern(pathConfiguration, regex);
             final Matcher matcher = pattern.matcher(input);
             if (matcher.matches()) {
                 if (isNull(captureGroups) || captureGroups.isEmpty()) {
@@ -317,10 +317,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
                 final String input = requestHeaders.get(headerConfiguration.getName());
                 final String regex = headerConfiguration.getRegex();
                 final List<String> captureGroups = headerConfiguration.getCaptureGroups();
-                if (isNull(headerConfiguration.getPattern())) {
-                    headerConfiguration.setPattern(Pattern.compile(regex));
-                }
-                final Pattern pattern = headerConfiguration.getPattern();
+                final Pattern pattern = getPattern(headerConfiguration, regex);
                 final Matcher matcher = pattern.matcher(input);
                 if (matcher.matches()) {
                     if (isNull(captureGroups) || captureGroups.isEmpty()) {
@@ -352,10 +349,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
                 final String input = httpServletRequest.getParameter(queryConfiguration.getName());
                 final String regex = queryConfiguration.getRegex();
                 final List<String> captureGroups = queryConfiguration.getCaptureGroups();
-                if (isNull(queryConfiguration.getPattern())) {
-                    queryConfiguration.setPattern(Pattern.compile(regex));
-                }
-                final Pattern pattern = queryConfiguration.getPattern();
+                final Pattern pattern = getPattern(queryConfiguration, regex);
                 final Matcher matcher = pattern.matcher(input);
                 if (matcher.matches()) {
                     if (isNull(captureGroups) || captureGroups.isEmpty()) {
@@ -379,7 +373,8 @@ public class RouteMatchingFilter implements ArchuraFilter {
     private void addRequestVariables(
             final HttpServletRequest httpServletRequest,
             final Map<String, String> requestHeaders,
-            final Map<String, String> templateVariables
+            final Map<String, String> templateVariables,
+            final GlobalConfiguration.RouteConfiguration routeConfiguration
     ) {
         templateVariables.put("request.path", httpServletRequest.getRequestURI());
         templateVariables.put("request.method", httpServletRequest.getMethod());
@@ -392,7 +387,8 @@ public class RouteMatchingFilter implements ArchuraFilter {
         final GlobalConfiguration.TenantConfiguration tenantConfiguration =
                 (GlobalConfiguration.TenantConfiguration) httpServletRequest.getAttribute(ARCHURA_CURRENT_TENANT);
         templateVariables.put("request.domain.name", domainConfiguration.getName());
-        templateVariables.put("request.route.name", tenantConfiguration.getName());
+        templateVariables.put("request.tenant.name", tenantConfiguration.getName());
+        templateVariables.put("request.route.name", routeConfiguration.getName());
     }
 
     private GlobalConfiguration.RouteConfiguration getNotFoundRouteConfiguration(
@@ -400,7 +396,7 @@ public class RouteMatchingFilter implements ArchuraFilter {
             final GlobalConfiguration.RouteMatchingFilterConfiguration configuration
     ) {
         final GlobalConfiguration.RouteConfiguration notFoundRoute = new GlobalConfiguration.RouteConfiguration();
-        final String notFoundUrl = configuration.getParameters().get(ARCHURA_NOT_FOUND_URL);
+        final String notFoundUrl = configuration.getParameters().get(ARCHURA_ROUTE_NOT_FOUND_URL);
         if (nonNull(notFoundUrl)) {
             final String method = httpServletRequest.getMethod();
             final Map<String, String> requestHeaders = getRequestHeaders(httpServletRequest);
@@ -442,6 +438,17 @@ public class RouteMatchingFilter implements ArchuraFilter {
         }
         @SuppressWarnings("unchecked") final Map<String, String> requestHeaders = (Map<String, String>) httpServletRequest.getAttribute(ARCHURA_REQUEST_HEADERS);
         return requestHeaders;
+    }
+
+    private Pattern getPattern(
+            final GlobalConfiguration.PatternHolder patternHolder,
+            final String regex
+    ) {
+        if (isNull(patternHolder.getPattern())) {
+            final Pattern pattern = Pattern.compile(regex);
+            patternHolder.setPattern(pattern);
+        }
+        return patternHolder.getPattern();
     }
 
 }

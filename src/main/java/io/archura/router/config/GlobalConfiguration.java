@@ -328,22 +328,16 @@ public class GlobalConfiguration {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class HeaderFilterConfiguration extends FilterConfiguration {
-        private Map<String, HeaderOperations> routeOperations = new HashMap<>();
+        private List<HeaderOperation> add = new ArrayList<>();
+        private List<HeaderOperation> remove = new ArrayList<>();
+        private List<HeaderOperation> validate = new ArrayList<>();
     }
 
     @Data
     @EqualsAndHashCode(callSuper = true)
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class HeaderOperations extends FilterConfiguration {
-        private Map<String, List<HeaderOperation>> operations = new HashMap<>();
-    }
-
-    @Data
-    @EqualsAndHashCode(callSuper = true)
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class HeaderOperation extends FilterConfiguration {
+    public static class HeaderOperation extends PatternHolder {
         private String name;
         private String value;
         private String regex;

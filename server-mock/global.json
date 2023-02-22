@@ -59,10 +59,47 @@
       "customerAccount": "localhost",
       "defaultTenantId": "default",
       "preFilters": {
+        "header": {
+          "__class": "io.archura.router.config.GlobalConfiguration$HeaderFilterConfiguration",
+          "parameters": {},
+          "add": [
+            {
+              "name": "Archura-Original-Method",
+              "value": "${request.method}"
+            },
+            {
+              "name": "Archura-Original-Path",
+              "value": "${request.path}"
+            },
+            {
+              "name": "Archura-Request-Domain",
+              "value": "${request.domain.name}"
+            },
+            {
+              "name": "Archura-Request-Tenant",
+              "value": "${request.tenant.name}"
+            },
+            {
+              "name": "Another-Request-Header",
+              "value": "some-value"
+            }
+          ],
+          "remove": [
+            {
+              "name": "Some-Request-Header"
+            }
+          ],
+          "validate": [
+            {
+              "name": "Only-Numbers-Header",
+              "regex": "^\\d+$"
+            }
+          ]
+        },
         "routeMatching": {
           "__class": "io.archura.router.config.GlobalConfiguration$RouteMatchingFilterConfiguration",
           "parameters": {
-            "archura.not-found.url": "http://localhost:9020/not-found.html"
+            "archura.route.not-found.url": "http://localhost:9020/not-found.html"
           },
           "methodRoutes": {
             "GET": [
@@ -80,55 +117,16 @@
                 },
                 "extractConfiguration": {},
                 "mapConfiguration": {
-                  "url": "http://localhost:9020/not-found.html"
+                  "url": "http://localhost:9020/not-found.html",
+                  "headers": {
+                    "request-original-method": "${request.header.Archura-Original-Method}",
+                    "request-original-path": "${request.header.Archura-Original-Path}",
+                    "request-domain": "${request.header.Archura-Request-Domain}",
+                    "request-tenant": "${request.header.Archura-Request-Tenant}"
+                  }
                 }
               }
             ]
-          }
-        },
-        "header": {
-          "__class": "io.archura.router.config.GlobalConfiguration$HeaderFilterConfiguration",
-          "parameters": {},
-          "routes": {
-            "*": {
-              "add": [
-                {
-                  "name": "Archura-Original-Method",
-                  "value": "${request.method}"
-                },
-                {
-                  "name": "Archura-Original-Path",
-                  "value": "${request.path}"
-                },
-                {
-                  "name": "Archura-Request-Domain",
-                  "value": "${request.domain.name}"
-                },
-                {
-                  "name": "Archura-Request-Tenant",
-                  "value": "${request.tenant.name}"
-                }
-              ]
-            },
-            "domain-route-01": {
-              "add": [
-                {
-                  "name": "Another-Request-Header",
-                  "value": "some-value"
-                }
-              ],
-              "remove": [
-                {
-                  "name": "Some-Request-Header"
-                }
-              ],
-              "validate": [
-                {
-                  "name": "Only-Numbers-Header",
-                  "regex": "^\\d+$"
-                }
-              ]
-            }
           }
         }
       },

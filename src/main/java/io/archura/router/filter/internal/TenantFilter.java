@@ -163,14 +163,14 @@ public class TenantFilter implements ArchuraFilter {
     }
 
     private Pattern getPattern(
-            final GlobalConfiguration.PatternHolder pathConfiguration,
+            final GlobalConfiguration.PatternHolder patternHolder,
             final String regex
     ) {
-        if (isNull(pathConfiguration.getPattern())) {
+        if (isNull(patternHolder.getPattern())) {
             final Pattern pattern = Pattern.compile(regex);
-            pathConfiguration.setPattern(pattern);
+            patternHolder.setPattern(pattern);
         }
-        return pathConfiguration.getPattern();
+        return patternHolder.getPattern();
     }
 
 }
