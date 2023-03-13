@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -119,6 +120,8 @@ public class GlobalConfiguration {
         private String name;
         private String customerAccount;
         private String defaultTenantId;
+        private String publicCertificate;
+        private String publicCertificateType;
         private Map<String, String> parameters = new HashMap<>();
         private Map<String, FilterConfiguration> preFilters = new HashMap<>();
         private Map<String, FilterConfiguration> postFilters = new HashMap<>();
@@ -342,6 +345,54 @@ public class GlobalConfiguration {
         private String name;
         private String value;
         private String regex;
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AuthenticationFilterConfiguration extends FilterConfiguration {
+        private List<String> routes = new ArrayList<>();
+        private boolean jwt = false;
+        private HeaderConfiguration headerConfiguration;
+        private PathConfiguration pathConfiguration;
+        private QueryConfiguration queryConfiguration;
+        private ValidationConfiguration validationConfiguration;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ValidationConfiguration {
+        private RemoteEndpointConfiguration remoteEndpoint;
+        private CacheConfiguration cacheConfiguration;
+        private StaticConfiguration staticConfiguration;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class RemoteEndpointConfiguration {
+        private String url;
+        private boolean cachable = false;
+        private String cacheKey;
+        private int cacheTtl = Duration.ofMillis(60_000).toMillisPart();
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class CacheConfiguration {
+        private String url;
+        private String cacheKey;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class StaticConfiguration {
+        private List<String> list = new ArrayList<>();
+        private Map<String, String> map = new HashMap<>();
     }
 
 }

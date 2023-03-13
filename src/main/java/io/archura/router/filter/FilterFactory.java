@@ -27,8 +27,7 @@ public class FilterFactory {
 
     private ArchuraFilter findFilter(String filterName) {
         if (nonNull(customFilterRegistry)) {
-            final Optional<ArchuraFilter> customFilter;
-            customFilter = customFilterRegistry.findFilter(filterName);
+            final Optional<ArchuraFilter> customFilter = customFilterRegistry.findFilter(filterName);
             if (customFilter.isPresent()) {
                 return customFilter.get();
             }
@@ -37,7 +36,7 @@ public class FilterFactory {
             final String filterBeanName = "%s%s%s".formatted(filterName.substring(0, 1).toLowerCase(), filterName.substring(1), "Filter");
             return beanFactory.getBean(filterBeanName, ArchuraFilter.class);
         } catch (Exception e) {
-            log.debug("No bean found for filter: {}", filterName);
+            log.error("No bean found for filter: {}", filterName);
             return new UnknownFilter(filterName);
         }
     }

@@ -133,6 +133,10 @@
               }
             ]
           }
+        },
+        "authentication": {
+          "__class": "io.archura.router.config.GlobalConfiguration$AuthenticationFilterConfiguration",
+          "parameters": {}
         }
       },
       "postFilters": {},
